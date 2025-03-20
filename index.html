@@ -2,130 +2,132 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Creator Tool - Crie Imagens e Código para Bots e Jogos</title>
-    <meta name="description" content="Crie imagens dinâmicas para bots do Discord, mods de jogos e mais com o Image Creator Tool. Exporte em Python, JavaScript, Lua, C#, Java, PHP e gere GIFs animados gratuitamente!">
-    <meta name="keywords" content="criador de imagens, editor de imagens online, bots Discord, mods MTA, gerar código, Python, JavaScript, Lua, C#, Java, PHP, GIF animado, ferramenta gratuita">
-    <meta name="author" content="RedeBots">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="description" content="Image Creator Tool - Um editor de imagens poderoso e moderno para criar designs incríveis. Desenvolvido por Code Projects e Rede Gamer por LucasDEV.">
+    <meta name="author" content="Code Projects, Rede Gamer, LucasDEV">
+    <meta name="keywords" content="editor de imagens, design, animação, templates, Image Creator Tool">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://gui-edit-v2.redebots.shop/">
-    <meta property="og:title" content="Image Creator Tool - Crie Imagens e Código">
-    <meta property="og:description" content="Ferramenta gratuita para criar imagens e exportar código para bots, jogos e projetos em várias linguagens. Experimente agora!">
-    <meta property="og:url" content="https://gui-edit-v2.redebots.shop/">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="https://gui-edit-v2.redebots.shop/assets/og-image.png">
-    <meta property="og:site_name" content="Image Creator Tool">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Image Creator Tool - Crie Imagens e Código">
-    <meta name="twitter:description" content="Crie imagens e exporte código para bots e jogos em Python, JS, Lua e mais. Gratuito e fácil de usar!">
-    <meta name="twitter:image" content="https://gui-edit-v2.redebots.shop/assets/og-image.png">
-    <link rel="icon" type="image/png" href="/assets/favicon.png">
+    <title>Image Creator Tool</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            overscroll-behavior: none;
+            touch-action: pan-y;
+        }
+        * {
+            transition: all 0.3s ease-in-out;
+        }
+        .hero-bg {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed, #db2777);
+            animation: gradientShift 15s ease infinite;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @media (max-width: 640px) {
+            .nav-menu {
+                transform: translateX(100%);
+            }
+            .nav-menu.open {
+                transform: translateX(0);
+            }
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col h-screen">
-    <!-- Cabeçalho -->
-    <header class="bg-gray-800 p-4 flex justify-between items-center shadow-lg">
+<body class="bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-white font-sans antialiased">
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 w-full h-16 bg-black bg-opacity-90 z-20 flex items-center justify-between px-4 shadow-lg">
         <div class="flex items-center space-x-2">
-            <i class="fas fa-paint-brush text-blue-500 text-2xl"></i>
-            <h1 class="text-2xl font-bold">Image Creator Tool</h1>
+            <h1 class="text-xl font-bold text-pink-300">Image Creator Tool</h1>
         </div>
-        <div class="space-x-2 flex flex-wrap">
-            <button id="addText" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-font"></i> Add Text</button>
-            <button id="addCircle" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-circle"></i> Add Circle</button>
-            <button id="addRect" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-square"></i> Add Rectangle</button>
-            <button id="addTriangle" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-play"></i> Add Triangle</button>
-            <button id="addStar" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-star"></i> Add Star</button>
-            <button id="uploadImage" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-upload"></i> Upload Base</button>
-            <select id="loadTemplate" class="p-2 bg-gray-700 rounded-lg text-white focus:outline-none">
-                <option value="">Load Template</option>
-                <option value="welcome">Welcome Card</option>
-                <option value="game_hud">Game HUD</option>
-            </select>
+        <div class="hidden sm:flex items-center space-x-4">
+            <a href="#features" class="text-indigo-300 hover:text-pink-300">Funcionalidades</a>
+            <a href="#templates" class="text-indigo-300 hover:text-pink-300">Templates</a>
+            <a href="editor.html" class="p-2 bg-pink-600 hover:bg-pink-700 rounded-full text-white flex items-center space-x-2">
+                <i class="fas fa-edit"></i><span>Editor</span>
+            </a>
         </div>
-    </header>
-
-    <!-- Área Principal -->
-    <main class="flex flex-1 overflow-hidden">
-        <!-- Sidebar (recolhível) -->
-        <aside id="sidebar" class="w-64 bg-gray-800 p-4 overflow-y-auto transition-all duration-300">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">Properties</h2>
-                <button id="toggleSidebar" class="text-gray-400 hover:text-white"><i class="fas fa-chevron-left"></i></button>
-            </div>
-            <div id="properties" class="space-y-4">
-                <div>
-                    <label class="block text-sm">Text</label>
-                    <input id="textInput" type="text" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" placeholder="Enter text">
-                </div>
-                <div>
-                    <label class="block text-sm">Font Size</label>
-                    <input id="fontSize" type="number" min="10" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="24">
-                </div>
-                <div>
-                    <label class="block text-sm">Width (X)</label>
-                    <input id="width" type="number" min="1" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="100">
-                </div>
-                <div>
-                    <label class="block text-sm">Height (Y)</label>
-                    <input id="height" type="number" min="1" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="100">
-                </div>
-                <div class="flex items-center">
-                    <input id="lockAspect" type="checkbox" class="mr-2">
-                    <label class="text-sm">Lock Aspect Ratio</label>
-                </div>
-                <div>
-                    <label class="block text-sm">Color</label>
-                    <input id="color" type="color" class="w-full h-10 bg-gray-700 rounded-lg cursor-pointer">
-                </div>
-                <div>
-                    <label class="block text-sm">Opacity (0-100%)</label>
-                    <input id="opacity" type="number" min="0" max="100" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="100">
-                </div>
-                <div>
-                    <label class="block text-sm">Blur (0-10px)</label>
-                    <input id="blur" type="number" min="0" max="10" step="0.1" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="0">
-                </div>
-                <div>
-                    <label class="block text-sm">Animation (GIF Frames)</label>
-                    <input id="animationFrames" type="number" min="1" max="10" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="1">
-                </div>
-                <div class="space-y-2">
-                    <button id="centerElement" class="w-full bg-gray-600 p-2 rounded-lg hover:bg-gray-700 transition">Center Element</button>
-                    <button id="alignElements" class="w-full bg-gray-600 p-2 rounded-lg hover:bg-gray-700 transition">Align to Selected</button>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Canvas -->
-        <section class="flex-1 p-6 flex justify-center items-center overflow-auto">
-            <div class="bg-gray-800 p-4 rounded-lg shadow-lg" id="canvasContainer">
-                <canvas id="canvas" class="rounded-md border border-gray-600 max-w-full h-auto"></canvas>
-            </div>
-        </section>
-    </main>
-
-    <!-- Rodapé -->
-    <footer class="bg-gray-800 p-4 flex justify-between items-center shadow-inner">
-        <button id="saveProject" class="bg-green-600 p-2 rounded-lg hover:bg-green-700 transition flex items-center space-x-2">
-            <i class="fas fa-save"></i><span>Save Project</span>
-        </button>
-        <div class="flex space-x-2">
-            <select id="exportLang" class="p-2 bg-gray-700 rounded-lg text-white focus:outline-none">
-                <option value="python">Python</option>
-                <option value="javascript">JavaScript</option>
-                <option value="lua">Lua</option>
-                <option value="csharp">C#</option>
-                <option value="java">Java</option>
-                <option value="php">PHP</option>
-            </select>
-            <button id="exportCode" class="bg-purple-600 p-2 rounded-lg hover:bg-purple-700 transition flex items-center space-x-2">
-                <i class="fas fa-download"></i><span>Export</span>
-            </button>
+        <button id="toggleNav" class="sm:hidden p-2 hover:bg-pink-700 rounded-full"><i class="fas fa-bars"></i></button>
+        <div id="navMenu" class="nav-menu fixed top-16 right-0 w-48 h-[calc(100vh-4rem)] bg-black bg-opacity-95 z-10 transform flex flex-col items-center space-y-4 p-4 sm:hidden">
+            <a href="#features" class="text-indigo-300 hover:text-pink-300">Funcionalidades</a>
+            <a href="#templates" class="text-indigo-300 hover:text-pink-300">Templates</a>
+            <a href="editor.html" class="p-2 bg-pink-600 hover:bg-pink-700 rounded-full text-white flex items-center space-x-2">
+                <i class="fas fa-edit"></i><span>Editor</span>
+            </a>
         </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-bg min-h-screen flex flex-col items-center justify-center text-center px-4 pt-16">
+        <h2 class="text-3xl sm:text-5xl font-extrabold text-white mb-4">Bem-vindo ao Image Creator Tool</h2>
+        <p class="text-base sm:text-lg text-indigo-200 mb-6 max-w-lg">Crie designs incríveis com um editor poderoso e intuitivo. Desenvolvido por Code Projects e Rede Gamer por LucasDEV.</p>
+        <a href="editor.html" class="p-3 bg-pink-600 hover:bg-pink-700 rounded-full text-white text-base flex items-center space-x-2">
+            <i class="fas fa-rocket"></i><span>Começar</span>
+        </a>
+    </section>
+
+    <!-- Funcionalidades -->
+    <section id="features" class="py-12 px-4">
+        <h3 class="text-2xl sm:text-3xl font-bold text-indigo-300 text-center mb-8">O que você pode fazer</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div class="p-4 bg-black bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
+                <i class="fas fa-paint-brush text-3xl text-pink-300 mb-3"></i>
+                <h4 class="text-lg font-semibold text-white mb-2">Criação</h4>
+                <p class="text-indigo-200 text-sm">Adicione formas, textos e imagens com facilidade.</p>
+            </div>
+            <div class="p-4 bg-black bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
+                <i class="fas fa-film text-3xl text-pink-300 mb-3"></i>
+                <h4 class="text-lg font-semibold text-white mb-2">Animação</h4>
+                <p class="text-indigo-200 text-sm">Crie GIFs com uma timeline interativa.</p>
+            </div>
+            <div class="p-4 bg-black bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
+                <i class="fas fa-code text-3xl text-pink-300 mb-3"></i>
+                <h4 class="text-lg font-semibold text-white mb-2">Exportação</h4>
+                <p class="text-indigo-200 text-sm">Gere código Python ou JavaScript.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Templates -->
+    <section id="templates" class="py-12 px-4 bg-black bg-opacity-50">
+        <h3 class="text-2xl sm:text-3xl font-bold text-indigo-300 text-center mb-8">Templates Prontos</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div class="p-4 bg-purple-900 bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
+                <div class="h-32 bg-pink-300 rounded mb-3"></div>
+                <h4 class="text-lg font-semibold text-white mb-2">Template 1</h4>
+                <p class="text-indigo-200 text-sm">Design vibrante para redes sociais.</p>
+            </div>
+            <div class="p-4 bg-purple-900 bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
+                <div class="h-32 bg-indigo-300 rounded mb-3"></div>
+                <h4 class="text-lg font-semibold text-white mb-2">Template 2</h4>
+                <p class="text-indigo-200 text-sm">Ideal para mockups e apresentações.</p>
+            </div>
+            <div class="p-4 bg-purple-900 bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
+                <div class="h-32 bg-pink-300 rounded mb-3"></div>
+                <h4 class="text-lg font-semibold text-white mb-2">Template 3</h4>
+                <p class="text-indigo-200 text-sm">Perfeito para animações criativas.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-6 px-4 bg-black bg-opacity-90 text-center">
+        <p class="text-indigo-200 text-sm">Desenvolvido por Code Projects e Rede Gamer por LucasDEV © 2025</p>
     </footer>
 
-    <script src="script.js"></script>
+    <!-- Script para toggle mobile -->
+    <script>
+        document.getElementById('toggleNav').addEventListener('click', () => {
+            document.getElementById('navMenu').classList.toggle('open');
+        });
+    </script>
 </body>
 </html>

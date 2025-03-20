@@ -1,315 +1,521 @@
-// Aguarda o DOM estar carregado
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicialização do Canvas com Fabric.js
+    if (!window.fabric) {
+        console.error('Fabric.js não foi carregado corretamente.');
+        return;
+    }
+
+    // Configuração inicial do Canvas
     const canvas = new fabric.Canvas('canvas', {
         width: 800,
-        height: 450,
+        height: 600,
         backgroundColor: '#333',
         preserveObjectStacking: true,
+        selection: true,
+        fireRightClick: true,
+        hoverCursor: 'pointer',
+        moveCursor: 'grab',
+        stateful: true,
     });
 
     // Variáveis globais
     let selectedObject = null;
     let history = [];
     let historyIndex = -1;
+    let images = []; // { fileName, object, isBackground, layer }
+    let layers = []; // Gerenciamento de camadas
+    let animationTimeline = []; // { object, keyframes: [{ frame, props }] }
+    let currentFrame = 0;
+    let isPlaying = false;
+    let zoomLevel = 1;
 
-    // Função para salvar estado no histórico
-    function saveState() {
+    // Funções de utilidade
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const debounce = (func, wait) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), wait);
+        };
+    };
+
+    // Salvar estado no histórico
+    const saveState = () => {
         history = history.slice(0, historyIndex + 1);
-        history.push(canvas.toJSON(['animationFrames', 'opacity', 'filters']));
+        const state = canvas.toJSON(['animationFrames', 'opacity', 'filters', 'rotation', 'skewX', 'skewY', 'strokeWidth', 'stroke', 'layer', 'keyframes']);
+        state.images = images.map(img => ({ fileName: img.fileName, isBackground: img.isBackground, layer: img.layer }));
+        state.timeline = animationTimeline;
+        history.push(state);
         historyIndex++;
-    }
+        updateLayersPanel();
+    };
 
-    // Função para desfazer
-    function undo() {
+    // Desfazer e refazer
+    const undo = () => {
         if (historyIndex > 0) {
             historyIndex--;
-            canvas.loadFromJSON(history[historyIndex], canvas.renderAll.bind(canvas));
+            loadState(history[historyIndex]);
         }
-    }
+    };
 
-    // Função para carregar imagem (usada por upload e drag-and-drop)
-    function loadImage(file) {
+    const redo = () => {
+        if (historyIndex < history.length - 1) {
+            historyIndex++;
+            loadState(history[historyIndex]);
+        }
+    };
+
+    const loadState = (state) => {
+        canvas.loadFromJSON(state, () => {
+            canvas.renderAll();
+            images = [];
+            state.images.forEach(img => {
+                const obj = canvas.getObjects().find(o => o.layer === img.layer) || canvas.backgroundImage;
+                images.push({ fileName: img.fileName, object: obj, isBackground: img.isBackground, layer: img.layer });
+            });
+            animationTimeline = state.timeline || [];
+            updateLayersPanel();
+            updateTimeline();
+        });
+    };
+
+    // Carregar imagem
+    const loadImage = (file, asBackground = false, layerIndex = null) => {
         const reader = new FileReader();
         reader.onload = (event) => {
             fabric.Image.fromURL(event.target.result, (img) => {
-                const imgWidth = img.width;
-                const imgHeight = img.height;
                 const maxCanvasWidth = 2000;
-                let canvasWidth = imgWidth;
-                let canvasHeight = imgHeight;
-                let scaleFactor = 1;
-
-                if (imgWidth > maxCanvasWidth) {
-                    scaleFactor = maxCanvasWidth / imgWidth;
-                    canvasWidth = maxCanvasWidth;
-                    canvasHeight = imgHeight * scaleFactor;
-                }
-
-                canvas.setWidth(canvasWidth);
-                canvas.setHeight(canvasHeight);
+                let scaleFactor = img.width > maxCanvasWidth ? maxCanvasWidth / img.width : 1;
 
                 img.set({
                     scaleX: scaleFactor,
                     scaleY: scaleFactor,
-                    left: 0,
-                    top: 0,
-                    selectable: false,
+                    left: asBackground ? 0 : canvas.width / 2 - (img.width * scaleFactor) / 2,
+                    top: asBackground ? 0 : canvas.height / 2 - (img.height * scaleFactor) / 2,
+                    selectable: !asBackground,
+                    layer: layerIndex !== null ? layerIndex : asBackground ? -1 : layers.length,
                 });
 
-                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
-                    scaleX: scaleFactor,
-                    scaleY: scaleFactor,
-                    left: 0,
-                    top: 0,
-                });
+                if (asBackground) {
+                    canvas.setWidth(img.width * scaleFactor);
+                    canvas.setHeight(img.height * scaleFactor);
+                    canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                        scaleX: scaleFactor,
+                        scaleY: scaleFactor,
+                        left: 0,
+                        top: 0,
+                    });
+                    images.push({ fileName: file.name, object: img, isBackground: true, layer: -1 });
+                } else {
+                    canvas.add(img);
+                    images.push({ fileName: file.name, object: img, isBackground: false, layer: img.layer });
+                    layers.push(img);
+                    canvas.setActiveObject(img);
+                    selectedObject = img;
+                    updateProperties();
+                }
                 saveState();
             }, { crossOrigin: 'anonymous' });
         };
         reader.readAsDataURL(file);
-    }
+    };
 
-    // Função para adicionar texto
-    document.getElementById('addText').addEventListener('click', () => {
-        const text = new fabric.Text('Sample Text', {
-            left: 100,
-            top: 100,
-            fontSize: 24,
-            fill: '#ffffff',
-            opacity: 1,
-            selectable: true,
-        });
-        canvas.add(text);
-        canvas.setActiveObject(text);
-        selectedObject = text;
+    // Adicionar eventos
+    const addEvent = (id, event, callback) => {
+        const element = document.getElementById(id);
+        if (element) element.addEventListener(event, callback);
+        else console.warn(`Elemento com ID "${id}" não encontrado.`);
+    };
+
+    // Ferramentas de criação
+    const addShape = (type, props) => {
+        const shape = type === 'circle' ? new fabric.Circle(props) :
+                     type === 'rect' ? new fabric.Rect(props) :
+                     type === 'triangle' ? new fabric.Triangle(props) :
+                     type === 'polygon' ? new fabric.Polygon(props.points, props) :
+                     type === 'line' ? new fabric.Line(props.points, props) :
+                     new fabric.IText('Novo Texto', props);
+        shape.layer = layers.length;
+        canvas.add(shape);
+        layers.push(shape);
+        canvas.setActiveObject(shape);
+        selectedObject = shape;
         updateProperties();
         saveState();
-    });
+    };
 
-    // Funções para adicionar formas geométricas
-    document.getElementById('addCircle').addEventListener('click', () => {
-        const circle = new fabric.Circle({
-            radius: 50,
-            left: 150,
-            top: 150,
-            fill: '#ff0000',
-            opacity: 1,
-            selectable: true,
-        });
-        canvas.add(circle);
-        canvas.setActiveObject(circle);
-        selectedObject = circle;
-        updateProperties();
-        saveState();
-    });
+    addEvent('addText', 'click', () => addShape('text', {
+        left: 100, top: 100, fontSize: 24, fill: '#ffffff', opacity: 1, fontFamily: 'Arial', textAlign: 'left'
+    }));
 
-    document.getElementById('addRect').addEventListener('click', () => {
-        const rect = new fabric.Rect({
-            width: 100,
-            height: 100,
-            left: 150,
-            top: 150,
-            fill: '#00ff00',
-            opacity: 1,
-            selectable: true,
-        });
-        canvas.add(rect);
-        canvas.setActiveObject(rect);
-        selectedObject = rect;
-        updateProperties();
-        saveState();
-    });
+    addEvent('addCircle', 'click', () => addShape('circle', {
+        radius: 50, left: 150, top: 150, fill: '#ff0000', opacity: 1, stroke: '#000000', strokeWidth: 0
+    }));
 
-    document.getElementById('addTriangle').addEventListener('click', () => {
-        const triangle = new fabric.Triangle({
-            width: 100,
-            height: 100,
-            left: 150,
-            top: 150,
-            fill: '#0000ff',
-            opacity: 1,
-            selectable: true,
-        });
-        canvas.add(triangle);
-        canvas.setActiveObject(triangle);
-        selectedObject = triangle;
-        updateProperties();
-        saveState();
-    });
+    addEvent('addRect', 'click', () => addShape('rect', {
+        width: 100, height: 100, left: 150, top: 150, fill: '#00ff00', opacity: 1, stroke: '#000000', strokeWidth: 0
+    }));
 
-    document.getElementById('addStar').addEventListener('click', () => {
-        const star = new fabric.Polygon([
-            { x: 0, y: -50 }, { x: 14, y: -15 }, { x: 47, y: -15 }, { x: 23, y: 10 }, { x: 29, y: 45 },
-            { x: 0, y: 25 }, { x: -29, y: 45 }, { x: -23, y: 10 }, { x: -47, y: -15 }, { x: -14, y: -15 }
-        ], {
-            left: 150,
-            top: 150,
-            fill: '#ffff00',
-            opacity: 1,
-            selectable: true,
-            scaleX: 1,
-            scaleY: 1,
-        });
-        canvas.add(star);
-        canvas.setActiveObject(star);
-        selectedObject = star;
-        updateProperties();
-        saveState();
-    });
+    addEvent('addTriangle', 'click', () => addShape('triangle', {
+        width: 100, height: 100, left: 150, top: 150, fill: '#0000ff', opacity: 1, stroke: '#000000', strokeWidth: 0
+    }));
 
-    // Upload de imagem base (botão)
-    document.getElementById('uploadImage').addEventListener('click', () => {
+    addEvent('addStar', 'click', () => addShape('polygon', {
+        points: [{ x: 0, y: -50 }, { x: 14, y: -15 }, { x: 47, y: -15 }, { x: 23, y: 10 }, { x: 29, y: 45 },
+                 { x: 0, y: 25 }, { x: -29, y: 45 }, { x: -23, y: 10 }, { x: -47, y: -15 }, { x: -14, y: -15 }],
+        left: 150, top: 150, fill: '#ffff00', opacity: 1, stroke: '#000000', strokeWidth: 0, scaleX: 1, scaleY: 1
+    }));
+
+    addEvent('addLine', 'click', () => addShape('line', {
+        points: [50, 100, 200, 100], left: 150, top: 150, stroke: '#ffffff', strokeWidth: 2, opacity: 1
+    }));
+
+    // Upload e Drag-and-Drop
+    addEvent('uploadImage', 'click', () => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) loadImage(file);
-        };
+        input.multiple = true;
+        input.onchange = (e) => Array.from(e.target.files).forEach(file => loadImage(file, true));
         input.click();
     });
 
-    // Suporte a Drag-and-Drop
     const canvasContainer = document.getElementById('canvasContainer');
-    canvasContainer.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        canvasContainer.style.borderColor = '#fff';
-    });
-    canvasContainer.addEventListener('dragleave', () => {
-        canvasContainer.style.borderColor = '#4b5563'; // gray-600
-    });
-    canvasContainer.addEventListener('drop', (e) => {
-        e.preventDefault();
-        canvasContainer.style.borderColor = '#4b5563';
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            loadImage(file);
-        }
-    });
+    if (canvasContainer) {
+        canvasContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            canvasContainer.style.borderColor = '#fff';
+        });
+        canvasContainer.addEventListener('dragleave', () => {
+            canvasContainer.style.borderColor = '#4b5563';
+        });
+        canvasContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            canvasContainer.style.borderColor = '#4b5563';
+            Array.from(e.dataTransfer.files).forEach(file => {
+                if (file.type.startsWith('image/')) loadImage(file, false);
+            });
+        });
+    }
 
-    // Carregar templates pré-definidos
-    document.getElementById('loadTemplate').addEventListener('change', (e) => {
+    // Carregar templates
+    addEvent('loadTemplate', 'change', (e) => {
         const template = e.target.value;
         if (!template) return;
-        fetch(`assets/templates/${template}.json`)
+        fetch(`./assets/templates/${template}.json`)
             .then(response => response.json())
             .then(data => {
                 canvas.clear();
-                canvas.loadFromJSON(data, canvas.renderAll.bind(canvas));
+                images = [];
+                layers = [];
+                animationTimeline = [];
+                canvas.loadFromJSON(data, () => {
+                    canvas.renderAll();
+                    data.objects.forEach((obj, i) => {
+                        if (obj.type === 'image') {
+                            const imgObj = canvas.item(i);
+                            images.push({ fileName: obj.src.split('/').pop(), object: imgObj, isBackground: false, layer: obj.layer || i });
+                            layers.push(imgObj);
+                        } else {
+                            layers.push(canvas.item(i));
+                        }
+                    });
+                    saveState();
+                });
+            })
+            .catch(err => console.error('Erro ao carregar template:', err));
+    });
+
+    // Eventos do Canvas
+    canvas.on({
+        'selection:created': (e) => { selectedObject = e.target; updateProperties(); },
+        'selection:updated': (e) => { selectedObject = e.target; updateProperties(); },
+        'selection:cleared': () => { selectedObject = null; updateProperties(); },
+        'mouse:dblclick': (e) => {
+            const target = e.target;
+            if (target && (target.type === 'text' || target.type === 'i-text')) {
+                if (target.type === 'text') {
+                    const iText = new fabric.IText(target.text, target.toObject());
+                    canvas.remove(target);
+                    canvas.add(iText);
+                    layers[target.layer] = iText;
+                    selectedObject = iText;
+                    iText.enterEditing();
+                    iText.selectAll();
+                } else {
+                    target.enterEditing();
+                    target.selectAll();
+                }
+                canvas.renderAll();
+                saveState();
+            }
+        },
+        'text:editing:exited': () => { if (selectedObject) updateProperties(); saveState(); },
+        'object:modified': saveState,
+        'mouse:wheel': (opt) => {
+            const delta = opt.e.deltaY;
+            zoomLevel = clamp(zoomLevel + (delta > 0 ? -0.1 : 0.1), 0.1, 5);
+            canvas.setZoom(zoomLevel);
+            canvas.renderAll();
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+        }
+    });
+
+    // Gerenciamento de propriedades
+    const updateProperties = () => {
+        if (!selectedObject) {
+            document.querySelectorAll('#properties input, #properties select').forEach(el => el.value = '');
+            return;
+        }
+        const props = {
+            textInput: selectedObject.text || '',
+            fontSize: selectedObject.fontSize || 24,
+            fontFamily: selectedObject.fontFamily || 'Arial',
+            width: Math.round(selectedObject.width * (selectedObject.scaleX || 1)) || 100,
+            height: Math.round(selectedObject.height * (selectedObject.scaleY || 1)) || 100,
+            color: selectedObject.fill || '#ffffff',
+            opacity: Math.round((selectedObject.opacity || 1) * 100),
+            blur: selectedObject.filters?.find(f => f instanceof fabric.Image.filters.Blur)?.blur || 0,
+            brightness: selectedObject.filters?.find(f => f instanceof fabric.Image.filters.Brightness)?.value || 0,
+            contrast: selectedObject.filters?.find(f => f instanceof fabric.Image.filters.Contrast)?.contrast || 0,
+            animationFrames: selectedObject.animationFrames || 1,
+            rotation: selectedObject.angle || 0,
+            skewX: selectedObject.skewX || 0,
+            skewY: selectedObject.skewY || 0,
+            strokeWidth: selectedObject.strokeWidth || 0,
+            strokeColor: selectedObject.stroke || '#000000',
+            shadowOffsetX: selectedObject.shadow?.offsetX || 0,
+            shadowOffsetY: selectedObject.shadow?.offsetY || 0,
+            shadowBlur: selectedObject.shadow?.blur || 0,
+            shadowColor: selectedObject.shadow?.color || '#000000',
+        };
+        Object.entries(props).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value;
+        });
+    };
+
+    const applyProperty = (id, prop, parse, extra = () => {}) => {
+        addEvent(id, 'input', (e) => {
+            if (!selectedObject) return;
+            const value = parse(e.target.value, selectedObject);
+            if (prop === 'filters') {
+                selectedObject.filters = selectedObject.filters || [];
+                const filterType = id === 'blur' ? fabric.Image.filters.Blur :
+                                  id === 'brightness' ? fabric.Image.filters.Brightness :
+                                  fabric.Image.filters.Contrast;
+                selectedObject.filters = selectedObject.filters.filter(f => !(f instanceof filterType));
+                if (value) selectedObject.filters.push(new filterType(id === 'blur' ? { blur: value } : { [id]: value }));
+                selectedObject.applyFilters();
+            } else if (prop === 'shadow') {
+                selectedObject.set('shadow', new fabric.Shadow({
+                    color: document.getElementById('shadowColor')?.value || '#000000',
+                    offsetX: parseInt(document.getElementById('shadowOffsetX')?.value || 0),
+                    offsetY: parseInt(document.getElementById('shadowOffsetY')?.value || 0),
+                    blur: parseInt(document.getElementById('shadowBlur')?.value || 0),
+                }));
+            } else {
+                selectedObject.set(prop, value);
+                extra();
+            }
+            canvas.renderAll();
+            saveState();
+        });
+    };
+
+    const propertyEvents = [
+        { id: 'textInput', prop: 'text', parse: v => v },
+        { id: 'fontSize', prop: 'fontSize', parse: parseInt },
+        { id: 'fontFamily', prop: 'fontFamily', parse: v => v },
+        { id: 'width', prop: 'scaleX', parse: (v, obj) => document.getElementById('lockAspect')?.checked ? v / obj.width : v / obj.width, extra: () => {
+            if (document.getElementById('lockAspect')?.checked) {
+                selectedObject.scaleY = selectedObject.scaleX;
+                document.getElementById('height').value = Math.round(selectedObject.height * selectedObject.scaleY);
+            }
+        }},
+        { id: 'height', prop: 'scaleY', parse: (v, obj) => document.getElementById('lockAspect')?.checked ? v / obj.height : v / obj.height, extra: () => {
+            if (document.getElementById('lockAspect')?.checked) {
+                selectedObject.scaleX = selectedObject.scaleY;
+                document.getElementById('width').value = Math.round(selectedObject.width * selectedObject.scaleX);
+            }
+        }},
+        { id: 'color', prop: 'fill', parse: v => v },
+        { id: 'opacity', prop: 'opacity', parse: v => parseInt(v) / 100 },
+        { id: 'blur', prop: 'filters', parse: parseFloat },
+        { id: 'brightness', prop: 'filters', parse: parseFloat },
+        { id: 'contrast', prop: 'filters', parse: parseFloat },
+        { id: 'animationFrames', prop: 'animationFrames', parse: parseInt },
+        { id: 'rotation', prop: 'angle', parse: parseFloat },
+        { id: 'skewX', prop: 'skewX', parse: parseFloat },
+        { id: 'skewY', prop: 'skewY', parse: parseFloat },
+        { id: 'strokeWidth', prop: 'strokeWidth', parse: parseInt, extra: () => selectedObject.set('stroke', document.getElementById('strokeColor')?.value || '#000000') },
+        { id: 'strokeColor', prop: 'stroke', parse: v => v },
+        { id: 'shadowOffsetX', prop: 'shadow', parse: parseInt },
+        { id: 'shadowOffsetY', prop: 'shadow', parse: parseInt },
+        { id: 'shadowBlur', prop: 'shadow', parse: parseInt },
+        { id: 'shadowColor', prop: 'shadow', parse: v => v },
+    ];
+    propertyEvents.forEach(p => applyProperty(p.id, p.prop, p.parse, p.extra));
+
+    // Gerenciamento de camadas
+    const updateLayersPanel = () => {
+        const layersPanel = document.getElementById('layersPanel');
+        if (!layersPanel) return;
+        layersPanel.innerHTML = '<h3>Camadas</h3>';
+        layers.forEach((layer, index) => {
+            const div = document.createElement('div');
+            div.className = 'layer-item';
+            div.innerHTML = `
+                <span>${layer.type} (${index})</span>
+                <button class="move-up" data-index="${index}">↑</button>
+                <button class="move-down" data-index="${index}">↓</button>
+                <button class="toggle-visibility" data-index="${index}">${layer.visible ? '👁️' : '👁️‍🗨️'}</button>
+                <button class="delete-layer" data-index="${index}">🗑️</button>
+            `;
+            layersPanel.appendChild(div);
+        });
+
+        document.querySelectorAll('.move-up').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                if (index > 0) {
+                    [layers[index], layers[index - 1]] = [layers[index - 1], layers[index]];
+                    layers[index].layer = index;
+                    layers[index - 1].layer = index - 1;
+                    canvas.moveTo(layers[index], index);
+                    canvas.moveTo(layers[index - 1], index - 1);
+                    saveState();
+                }
+            });
+        });
+
+        document.querySelectorAll('.move-down').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                if (index < layers.length - 1) {
+                    [layers[index], layers[index + 1]] = [layers[index + 1], layers[index]];
+                    layers[index].layer = index;
+                    layers[index + 1].layer = index + 1;
+                    canvas.moveTo(layers[index], index);
+                    canvas.moveTo(layers[index + 1], index + 1);
+                    saveState();
+                }
+            });
+        });
+
+        document.querySelectorAll('.toggle-visibility').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                layers[index].visible = !layers[index].visible;
+                btn.textContent = layers[index].visible ? '👁️' : '👁️‍🗨️';
+                canvas.renderAll();
                 saveState();
             });
-    });
+        });
 
-    // Atualizar propriedades do objeto selecionado
-    canvas.on('selection:created', (e) => {
-        selectedObject = e.target;
-        updateProperties();
-    });
-    canvas.on('selection:updated', (e) => {
-        selectedObject = e.target;
-        updateProperties();
-    });
+        document.querySelectorAll('.delete-layer').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                canvas.remove(layers[index]);
+                images = images.filter(img => img.object !== layers[index]);
+                layers.splice(index, 1);
+                layers.forEach((l, i) => l.layer = i);
+                saveState();
+            });
+        });
+    };
 
-    function updateProperties() {
-        if (!selectedObject) return;
-        document.getElementById('textInput').value = selectedObject.text || '';
-        document.getElementById('fontSize').value = selectedObject.fontSize || 24;
-        document.getElementById('width').value = selectedObject.width * (selectedObject.scaleX || 1) || 100;
-        document.getElementById('height').value = selectedObject.height * (selectedObject.scaleY || 1) || 100;
-        document.getElementById('color').value = selectedObject.fill || '#ffffff';
-        document.getElementById('opacity').value = (selectedObject.opacity || 1) * 100;
-        document.getElementById('blur').value = selectedObject.filters?.find(f => f instanceof fabric.Image.filters.Blur)?.blur || 0;
-        document.getElementById('animationFrames').value = selectedObject.animationFrames || 1;
-    }
-
-    // Aplicar mudanças nas propriedades
-    document.getElementById('textInput').addEventListener('input', (e) => {
-        if (selectedObject && selectedObject.type === 'text') {
-            selectedObject.set('text', e.target.value);
-            canvas.renderAll();
-            saveState();
+    // Animação e Timeline
+    const updateTimeline = () => {
+        const timeline = document.getElementById('animationTimeline');
+        if (!timeline) return;
+        timeline.innerHTML = '<h3>Timeline</h3>';
+        const maxFrames = Math.max(...layers.map(l => l.animationFrames || 1), 1);
+        const frameDiv = document.createElement('div');
+        frameDiv.className = 'timeline-frames';
+        for (let i = 0; i < maxFrames; i++) {
+            const frameBtn = document.createElement('button');
+            frameBtn.textContent = i;
+            frameBtn.className = i === currentFrame ? 'active' : '';
+            frameBtn.addEventListener('click', () => {
+                currentFrame = i;
+                updateAnimationFrame();
+                updateTimeline();
+            });
+            frameDiv.appendChild(frameBtn);
         }
-    });
-    document.getElementById('fontSize').addEventListener('input', (e) => {
-        if (selectedObject) {
-            selectedObject.set('fontSize', parseInt(e.target.value));
-            canvas.renderAll();
-            saveState();
-        }
-    });
-    document.getElementById('width').addEventListener('input', (e) => {
-        if (selectedObject) {
-            const lockAspect = document.getElementById('lockAspect').checked;
-            const newWidth = parseInt(e.target.value);
-            if (lockAspect) {
-                const ratio = newWidth / (selectedObject.width * selectedObject.scaleX);
-                selectedObject.scaleX = ratio;
-                selectedObject.scaleY = ratio;
-                document.getElementById('height').value = selectedObject.height * ratio;
-            } else {
-                selectedObject.scaleX = newWidth / selectedObject.width;
+        timeline.appendChild(frameDiv);
+
+        layers.forEach((layer, index) => {
+            const track = document.createElement('div');
+            track.className = 'timeline-track';
+            track.innerHTML = `<span>${layer.type} (${index})</span>`;
+            for (let i = 0; i < (layer.animationFrames || 1); i++) {
+                const keyframe = document.createElement('span');
+                keyframe.className = 'keyframe';
+                keyframe.dataset.layer = index;
+                keyframe.dataset.frame = i;
+                keyframe.addEventListener('click', () => addKeyframe(layer, i));
+                track.appendChild(keyframe);
             }
-            canvas.renderAll();
-            saveState();
+            timeline.appendChild(track);
+        });
+    };
+
+    const addKeyframe = (obj, frame) => {
+        let anim = animationTimeline.find(a => a.object === obj);
+        if (!anim) {
+            anim = { object: obj, keyframes: [] };
+            animationTimeline.push(anim);
         }
-    });
-    document.getElementById('height').addEventListener('input', (e) => {
-        if (selectedObject) {
-            const lockAspect = document.getElementById('lockAspect').checked;
-            const newHeight = parseInt(e.target.value);
-            if (lockAspect) {
-                const ratio = newHeight / (selectedObject.height * selectedObject.scaleY);
-                selectedObject.scaleX = ratio;
-                selectedObject.scaleY = ratio;
-                document.getElementById('width').value = selectedObject.width * ratio;
-            } else {
-                selectedObject.scaleY = newHeight / selectedObject.height;
+        anim.keyframes.push({
+            frame,
+            props: {
+                left: obj.left,
+                top: obj.top,
+                scaleX: obj.scaleX,
+                scaleY: obj.scaleY,
+                angle: obj.angle,
+                opacity: obj.opacity,
             }
-            canvas.renderAll();
-            saveState();
-        }
-    });
-    document.getElementById('color').addEventListener('input', (e) => {
-        if (selectedObject) {
-            selectedObject.set('fill', e.target.value);
-            canvas.renderAll();
-            saveState();
-        }
-    });
-    document.getElementById('opacity').addEventListener('input', (e) => {
-        if (selectedObject) {
-            selectedObject.set('opacity', parseInt(e.target.value) / 100);
-            canvas.renderAll();
-            saveState();
-        }
-    });
-    document.getElementById('blur').addEventListener('input', (e) => {
-        if (selectedObject) {
-            const blurValue = parseFloat(e.target.value);
-            if (!selectedObject.filters) selectedObject.filters = [];
-            const existingBlur = selectedObject.filters.find(f => f instanceof fabric.Image.filters.Blur);
-            if (existingBlur) {
-                existingBlur.blur = blurValue;
-            } else if (blurValue > 0) {
-                selectedObject.filters.push(new fabric.Image.filters.Blur({ blur: blurValue }));
-            } else {
-                selectedObject.filters = selectedObject.filters.filter(f => !(f instanceof fabric.Image.filters.Blur));
+        });
+        updateTimeline();
+        saveState();
+    };
+
+    const updateAnimationFrame = () => {
+        animationTimeline.forEach(anim => {
+            const keyframes = anim.keyframes.filter(k => k.frame <= currentFrame).sort((a, b) => b.frame - a.frame);
+            if (keyframes.length) {
+                const { props } = keyframes[0];
+                anim.object.set(props);
             }
-            selectedObject.applyFilters();
-            canvas.renderAll();
-            saveState();
-        }
-    });
-    document.getElementById('animationFrames').addEventListener('input', (e) => {
-        if (selectedObject) {
-            selectedObject.animationFrames = parseInt(e.target.value);
-            canvas.renderAll();
-            saveState();
-        }
+        });
+        canvas.renderAll();
+    };
+
+    const playAnimation = () => {
+        if (isPlaying) return;
+        isPlaying = true;
+        const maxFrames = Math.max(...layers.map(l => l.animationFrames || 1), 1);
+        const animate = () => {
+            if (!isPlaying) return;
+            currentFrame = (currentFrame + 1) % maxFrames;
+            updateAnimationFrame();
+            updateTimeline();
+            requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+    };
+
+    addEvent('playAnimation', 'click', () => playAnimation());
+    addEvent('stopAnimation', 'click', () => isPlaying = false);
+    addEvent('addKeyframe', 'click', () => {
+        if (selectedObject) addKeyframe(selectedObject, currentFrame);
     });
 
-    // Centralizar elemento
-    document.getElementById('centerElement').addEventListener('click', () => {
+    // Ferramentas de manipulação
+    addEvent('centerElement', 'click', () => {
         if (selectedObject) {
             selectedObject.center();
             canvas.renderAll();
@@ -317,206 +523,338 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Alinhar elementos (primeiro selecionado ao segundo)
-    document.getElementById('alignElements').addEventListener('click', () => {
+    addEvent('alignElements', 'click', () => {
         const activeObjects = canvas.getActiveObjects();
-        if (activeObjects.length === 2) {
-            const [first, second] = activeObjects;
-            first.set({
-                left: second.left,
-                top: second.top,
+        if (activeObjects.length < 2) return alert('Selecione pelo menos dois elementos.');
+        const reference = activeObjects[0];
+        activeObjects.slice(1).forEach(obj => obj.set({ left: reference.left, top: reference.top }));
+        canvas.renderAll();
+        saveState();
+    });
+
+    addEvent('duplicateElement', 'click', () => {
+        if (selectedObject) {
+            selectedObject.clone((cloned) => {
+                cloned.set({ left: selectedObject.left + 20, top: selectedObject.top + 20, layer: layers.length });
+                canvas.add(cloned);
+                layers.push(cloned);
+                if (cloned.type === 'image') {
+                    const imgData = images.find(img => img.object === selectedObject);
+                    if (imgData) images.push({ fileName: imgData.fileName, object: cloned, isBackground: false, layer: cloned.layer });
+                }
+                canvas.setActiveObject(cloned);
+                selectedObject = cloned;
+                updateProperties();
+                saveState();
             });
-            canvas.renderAll();
-            saveState();
-        } else {
-            alert('Selecione exatamente dois elementos para alinhar.');
         }
     });
 
-    // Deletar elemento com tecla Delete
+    addEvent('groupElements', 'click', () => {
+        const activeObjects = canvas.getActiveObjects();
+        if (activeObjects.length > 1) {
+            const group = new fabric.Group(activeObjects, { layer: layers.length });
+            canvas.discardActiveObject();
+            activeObjects.forEach(obj => {
+                canvas.remove(obj);
+                layers.splice(layers.indexOf(obj), 1);
+            });
+            canvas.add(group);
+            layers.push(group);
+            canvas.setActiveObject(group);
+            selectedObject = group;
+            updateProperties();
+            saveState();
+        }
+    });
+
+    addEvent('ungroupElements', 'click', () => {
+        if (selectedObject && selectedObject.type === 'group') {
+            const items = selectedObject.getObjects();
+            selectedObject.toActiveSelection();
+            canvas.discardActiveObject();
+            items.forEach(item => {
+                item.layer = layers.length;
+                canvas.add(item);
+                layers.push(item);
+            });
+            canvas.requestRenderAll();
+            saveState();
+        }
+    });
+
+    // Zoom e Pan
+    addEvent('zoomIn', 'click', () => {
+        zoomLevel = clamp(zoomLevel + 0.1, 0.1, 5);
+        canvas.setZoom(zoomLevel);
+        canvas.renderAll();
+    });
+
+    addEvent('zoomOut', 'click', () => {
+        zoomLevel = clamp(zoomLevel - 0.1, 0.1, 5);
+        canvas.setZoom(zoomLevel);
+        canvas.renderAll();
+    });
+
+    let isPanning = false;
+    let lastPosX = 0;
+    let lastPosY = 0;
+    canvas.on('mouse:down', (opt) => {
+        if (opt.e.altKey) {
+            isPanning = true;
+            lastPosX = opt.e.clientX;
+            lastPosY = opt.e.clientY;
+            canvas.setCursor('grabbing');
+        }
+    });
+    canvas.on('mouse:move', (opt) => {
+        if (isPanning) {
+            const deltaX = opt.e.clientX - lastPosX;
+            const deltaY = opt.e.clientY - lastPosY;
+            canvas.relativePan({ x: deltaX, y: deltaY });
+            lastPosX = opt.e.clientX;
+            lastPosY = opt.e.clientY;
+        }
+    });
+    canvas.on('mouse:up', () => {
+        isPanning = false;
+        canvas.setCursor('default');
+    });
+
+    // Eventos de teclado
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Delete' && selectedObject) {
             canvas.remove(selectedObject);
+            images = images.filter(img => img.object !== selectedObject);
+            layers.splice(layers.indexOf(selectedObject), 1);
+            layers.forEach((l, i) => l.layer = i);
             selectedObject = null;
             canvas.renderAll();
             saveState();
-        } else if (e.ctrlKey && e.key === 'z') {
-            undo();
+        } else if (e.ctrlKey && e.key === 'z') undo();
+        else if (e.ctrlKey && e.key === 'y') redo();
+        else if (e.ctrlKey && e.key === 'c' && selectedObject) selectedObject.clone(cloned => window.copiedObject = cloned);
+        else if (e.ctrlKey && e.key === 'v' && window.copiedObject) {
+            window.copiedObject.clone(cloned => {
+                cloned.set({ left: cloned.left + 20, top: cloned.top + 20, layer: layers.length });
+                canvas.add(cloned);
+                layers.push(cloned);
+                if (cloned.type === 'image') {
+                    const imgData = images.find(img => img.object === window.copiedObject);
+                    if (imgData) images.push({ fileName: imgData.fileName, object: cloned, isBackground: false, layer: cloned.layer });
+                }
+                canvas.setActiveObject(cloned);
+                selectedObject = cloned;
+                updateProperties();
+                saveState();
+            });
         }
     });
 
-    // Salvar projeto no localStorage
-    document.getElementById('saveProject').addEventListener('click', () => {
-        const project = canvas.toJSON(['animationFrames', 'opacity', 'filters']);
-        localStorage.setItem('imageCreatorProject', JSON.stringify(project));
-        alert('Projeto salvo com sucesso!');
+    // Salvar e carregar projeto
+    addEvent('saveProject', 'click', () => {
+        const project = canvas.toJSON(['animationFrames', 'opacity', 'filters', 'rotation', 'skewX', 'skewY', 'strokeWidth', 'stroke', 'layer', 'keyframes']);
+        project.images = images.map(img => ({ fileName: img.fileName, isBackground: img.isBackground, layer: img.layer }));
+        project.timeline = animationTimeline;
+    
+        if (navigator.onLine) {
+            const blob = new Blob([JSON.stringify(project)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'project.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        } else {
+            navigator.serviceWorker.controller.postMessage({
+                type: 'SAVE_OFFLINE_PROJECT',
+                project,
+            });
+            alert('Projeto salvo offline. Será sincronizado quando a conexão retornar.');
+        }
     });
 
-    // Exportar código e elementos
-    document.getElementById('exportCode').addEventListener('click', () => {
-        const lang = document.getElementById('exportLang').value;
-        const objects = canvas.getObjects();
-        let code = '';
-        const elements = [];
+    addEvent('loadProject', 'click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const data = JSON.parse(event.target.result);
+                loadState(data);
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    });
 
-        objects.forEach((obj) => {
-            const frames = obj.animationFrames || 1;
+    // Exportação avançada
+    addEvent('exportCode', 'click', async () => {
+        if (!window.JSZip || !window.saveAs) {
+            console.error('JSZip ou FileSaver.js não estão carregados.');
+            return;
+        }
+
+        const lang = document.getElementById('exportLang')?.value;
+        const objects = canvas.getObjects();
+        const zip = new JSZip();
+        let code = '';
+
+        const maxWidth = Math.max(canvas.width, ...objects.map(obj => obj.left + (obj.width * (obj.scaleX || 1))));
+        const maxHeight = Math.max(canvas.height, ...objects.map(obj => obj.top + (obj.height * (obj.scaleY || 1))));
+        const hasAnimation = animationTimeline.length > 0;
+
+        const exportImage = (img, index, isBackground) => {
+            const obj = img.object;
+            const width = Math.round(obj.width * (obj.scaleX || 1));
+            const height = Math.round(obj.height * (obj.scaleY || 1));
             const opacity = obj.opacity || 1;
-            const blur = obj.filters?.find(f => f instanceof fabric.Image.filters.Blur)?.blur || 0;
-            if (obj.type === 'text') {
-                elements.push({ type: 'text', text: obj.text, x: obj.left, y: obj.top, size: obj.fontSize, color: obj.fill, frames, opacity, blur });
-            } else if (obj.type === 'circle') {
-                elements.push({ type: 'circle', radius: obj.radius, x: obj.left, y: obj.top, color: obj.fill, frames, opacity, blur });
-            } else if (obj.type === 'rect') {
-                elements.push({ type: 'rect', width: obj.width * obj.scaleX, height: obj.height * obj.scaleY, x: obj.left, y: obj.top, color: obj.fill, frames, opacity, blur });
-            } else if (obj.type === 'triangle') {
-                elements.push({ type: 'triangle', width: obj.width * obj.scaleX, height: obj.height * obj.scaleY, x: obj.left, y: obj.top, color: obj.fill, frames, opacity, blur });
-            } else if (obj.type === 'polygon') {
-                elements.push({ type: 'star', points: obj.points, x: obj.left, y: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, color: obj.fill, frames, opacity, blur });
+            let imgCode = '';
+            if (lang === 'python') {
+                imgCode += `    # ${isBackground ? 'Fundo' : 'Imagem'} ${index}: ${img.fileName}\n`;
+                imgCode += `    img_${index} = Image.open("${img.fileName}").convert("RGBA")\n`;
+                imgCode += `    img_${index} = img_${index}.resize((${width}, ${height}))\n`;
+                if (opacity < 1) {
+                    imgCode += `    alpha_${index} = img_${index}.split()[3]\n`;
+                    imgCode += `    alpha_${index} = alpha_${index}.point(lambda p: int(p * ${opacity}))\n`;
+                    imgCode += `    img_${index}.putalpha(alpha_${index})\n`;
+                }
+                imgCode += `    img.paste(img_${index}, (${Math.round(obj.left)}, ${Math.round(obj.top)}), img_${index})\n\n`;
+            } else if (lang === 'javascript') {
+                imgCode += `    // ${isBackground ? 'Fundo' : 'Imagem'} ${index}: ${img.fileName}\n`;
+                imgCode += `    const img_${index} = await loadImage("${img.fileName}");\n`;
+                imgCode += `    ctx.globalAlpha = ${opacity};\n`;
+                imgCode += `    ctx.drawImage(img_${index}, ${Math.round(obj.left)}, ${Math.round(obj.top)}, ${width}, ${height});\n\n`;
             }
-        });
+            return imgCode;
+        };
+
+        const exportShape = (obj, index) => {
+            const alpha = Math.round((obj.opacity || 1) * 255).toString(16).padStart(2, '0');
+            const fill = `${obj.fill || '#000000'}${alpha}`;
+            const stroke = obj.stroke ? `${obj.stroke}${alpha}` : null;
+            let shapeCode = `    # ${obj.type} ${index}\n`;
+            if (lang === 'python') {
+                if (obj.type === 'text' || obj.type === 'i-text') {
+                    shapeCode += `    font_${index} = ImageFont.truetype("${obj.fontFamily || 'arial.ttf'}", ${obj.fontSize})\n`;
+                    shapeCode += `    draw.text((${Math.round(obj.left)}, ${Math.round(obj.top)}), "${obj.text}", fill="${fill}", font=font_${index})\n`;
+                } else if (obj.type === 'circle') {
+                    const radius = Math.round(obj.radius * (obj.scaleX || 1));
+                    shapeCode += `    draw.ellipse((${Math.round(obj.left)}, ${Math.round(obj.top)}, ${Math.round(obj.left + radius * 2)}, ${Math.round(obj.top + radius * 2)}), fill="${fill}", outline="${stroke}", width=${obj.strokeWidth || 0})\n`;
+                } else if (obj.type === 'rect') {
+                    const width = Math.round(obj.width * (obj.scaleX || 1));
+                    const height = Math.round(obj.height * (obj.scaleY || 1));
+                    shapeCode += `    draw.rectangle((${Math.round(obj.left)}, ${Math.round(obj.top)}, ${Math.round(obj.left + width)}, ${Math.round(obj.top + height)}), fill="${fill}", outline="${stroke}", width=${obj.strokeWidth || 0})\n`;
+                } else if (obj.type === 'triangle') {
+                    const width = Math.round(obj.width * (obj.scaleX || 1));
+                    const height = Math.round(obj.height * (obj.scaleY || 1));
+                    shapeCode += `    draw.polygon([(${Math.round(obj.left + width / 2)}, ${Math.round(obj.top)}), (${Math.round(obj.left)}, ${Math.round(obj.top + height)}), (${Math.round(obj.left + width)}, ${Math.round(obj.top + height)})], fill="${fill}", outline="${stroke}", width=${obj.strokeWidth || 0})\n`;
+                } else if (obj.type === 'polygon') {
+                    const points = obj.points.map(p => `(${Math.round(obj.left + p.x * (obj.scaleX || 1))}, ${Math.round(obj.top + p.y * (obj.scaleY || 1))})`).join(', ');
+                    shapeCode += `    draw.polygon([${points}], fill="${fill}", outline="${stroke}", width=${obj.strokeWidth || 0})\n`;
+                } else if (obj.type === 'line') {
+                    shapeCode += `    draw.line((${Math.round(obj.x1)}, ${Math.round(obj.y1)}, ${Math.round(obj.x2)}, ${Math.round(obj.y2)}), fill="${stroke}", width=${obj.strokeWidth || 2})\n`;
+                }
+                if (obj.filters?.length) {
+                    obj.filters.forEach(f => {
+                        if (f.blur) shapeCode += `    img = img.filter(ImageFilter.GaussianBlur(radius=${f.blur}))\n`;
+                        // Adicionar outros filtros conforme necessário
+                    });
+                }
+            }
+            return shapeCode;
+        };
 
         switch (lang) {
             case 'python':
-                code = `from PIL import Image, ImageDraw, ImageFont, ImageFilter\n\n`;
-                code += `def create_image():\n    img = Image.open("base.png")\n    draw = ImageDraw.Draw(img, "RGBA")\n`;
-                elements.forEach((el) => {
-                    const alpha = Math.round(el.opacity * 255).toString(16).padStart(2, '0');
-                    if (el.type === 'text') {
-                        code += `    font = ImageFont.truetype("arial.ttf", ${el.size})\n`;
-                        code += `    draw.text((${el.x}, ${el.y}), "${el.text}", fill="${el.color}${alpha}", font=font)\n`;
-                    } else if (el.type === 'circle') {
-                        code += `    draw.ellipse((${el.x}, ${el.y}, ${el.x + el.radius * 2}, ${el.y + el.radius * 2}), fill="${el.color}${alpha}")\n`;
-                    } else if (el.type === 'rect') {
-                        code += `    draw.rectangle((${el.x}, ${el.y}, ${el.x + el.width}, ${el.y + el.height}), fill="${el.color}${alpha}")\n`;
-                    } else if (el.type === 'triangle') {
-                        code += `    draw.polygon([(${el.x + el.width / 2}, ${el.y}), (${el.x}, ${el.y + el.height}), (${el.x + el.width}, ${el.y + el.height})], fill="${el.color}${alpha}")\n`;
-                    } else if (el.type === 'star') {
-                        code += `    draw.polygon([${el.points.map(p => `(${el.x + p.x * el.scaleX}, ${el.y + p.y * el.scaleY})`).join(', ')}], fill="${el.color}${alpha}")\n`;
-                    }
-                    if (el.blur > 0) code += `    img = img.filter(ImageFilter.GaussianBlur(radius=${el.blur}))\n`;
-                });
-                code += `    img.save("output.png")\n\ncreate_image()`;
-                break;
-            case 'javascript':
-                code = `const { createCanvas, loadImage } = require('canvas');\n\n`;
-                code += `async function createImage() {\n    const canvas = createCanvas(${canvas.width}, ${canvas.height});\n    const ctx = canvas.getContext('2d');\n    const img = await loadImage('base.png');\n    ctx.drawImage(img, 0, 0, ${canvas.width}, ${canvas.height});\n`;
-                elements.forEach((el) => {
-                    code += `    ctx.globalAlpha = ${el.opacity};\n`;
-                    if (el.blur > 0) code += `    ctx.filter = "blur(${el.blur}px)";\n`;
-                    if (el.type === 'text') {
-                        code += `    ctx.fillStyle = "${el.color}";\n    ctx.font = "${el.size}px Arial";\n`;
-                        code += `    ctx.fillText("${el.text}", ${el.x}, ${el.y});\n`;
-                    } else if (el.type === 'circle') {
-                        code += `    ctx.fillStyle = "${el.color}";\n    ctx.beginPath();\n`;
-                        code += `    ctx.arc(${el.x + el.radius}, ${el.y + el.radius}, ${el.radius}, 0, Math.PI * 2);\n    ctx.fill();\n`;
-                    } else if (el.type === 'rect') {
-                        code += `    ctx.fillStyle = "${el.color}";\n    ctx.fillRect(${el.x}, ${el.y}, ${el.width}, ${el.height});\n`;
-                    } else if (el.type === 'triangle') {
-                        code += `    ctx.fillStyle = "${el.color}";\n    ctx.beginPath();\n`;
-                        code += `    ctx.moveTo(${el.x + el.width / 2}, ${el.y});\n`;
-                        code += `    ctx.lineTo(${el.x}, ${el.y + el.height});\n`;
-                        code += `    ctx.lineTo(${el.x + el.width}, ${el.y + el.height});\n    ctx.closePath();\n    ctx.fill();\n`;
-                    } else if (el.type === 'star') {
-                        code += `    ctx.fillStyle = "${el.color}";\n    ctx.beginPath();\n`;
-                        el.points.forEach((p, i) => {
-                            const x = el.x + p.x * el.scaleX;
-                            const y = el.y + p.y * el.scaleY;
-                            if (i === 0) code += `    ctx.moveTo(${x}, ${y});\n`;
-                            else code += `    ctx.lineTo(${x}, ${y});\n`;
-                        });
-                        code += `    ctx.closePath();\n    ctx.fill();\n`;
-                    }
-                    code += `    ctx.globalAlpha = 1;\n    ctx.filter = "none";\n`;
-                });
-                code += `    const fs = require('fs');\n    fs.writeFileSync('output.png', canvas.toBuffer('image/png'));\n}\n\ncreateImage();`;
-                break;
-            // Outras linguagens seguem o mesmo padrão, omitidas por brevidade
-        }
+                if (hasAnimation) {
+                    code = 'from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageSequence\nimport math\n\n';
+                    code += 'def create_gif():\n';
+                    code += `    frames = []\n`;
+                    code += `    base_img = Image.new("RGBA", (${Math.ceil(maxWidth)}, ${Math.ceil(maxHeight)}), (0, 0, 0, 0))\n`;
+                    code += '    draw = ImageDraw.Draw(base_img)\n\n';
 
-        const zip = new JSZip();
-        const ext = lang === 'python' ? 'py' : lang === 'javascript' ? 'js' : lang === 'lua' ? 'lua' : lang === 'csharp' ? 'cs' : lang === 'java' ? 'java' : 'php';
-        zip.file(`script.${ext}`, code);
-        elements.forEach((el, i) => {
-            zip.file(`element_${i}_${el.type}.json`, JSON.stringify(el));
-        });
+                    images.filter(img => img.isBackground).forEach((img, i) => code += exportImage(img, i, true));
+                    images.filter(img => !img.isBackground).forEach((img, i) => code += exportImage(img, i, false));
 
-        const hasAnimation = elements.some(el => el.frames > 1);
-        if (hasAnimation) {
-            const gifFrames = [];
-            elements.forEach((el) => {
-                for (let i = 0; i < el.frames; i++) {
-                    const tempCanvas = fabric.util.createCanvasElement();
-                    tempCanvas.width = canvas.width;
-                    tempCanvas.height = canvas.height;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    if (canvas.backgroundImage) {
-                        tempCtx.drawImage(canvas.backgroundImage.getElement(), 0, 0, canvas.width, canvas.height);
-                    }
-                    tempCtx.globalAlpha = el.opacity;
-                    if (el.blur > 0) tempCtx.filter = `blur(${el.blur}px)`;
-                    if (el.type === 'text') {
-                        tempCtx.font = `${el.size}px Arial`;
-                        tempCtx.fillStyle = el.color;
-                        tempCtx.fillText(el.text, el.x + i * 10, el.y);
-                    } else if (el.type === 'circle') {
-                        tempCtx.fillStyle = el.color;
-                        tempCtx.beginPath();
-                        tempCtx.arc(el.x + el.radius + i * 10, el.y + el.radius, el.radius, 0, Math.PI * 2);
-                        tempCtx.fill();
-                    } else if (el.type === 'rect') {
-                        tempCtx.fillStyle = el.color;
-                        tempCtx.fillRect(el.x + i * 10, el.y, el.width, el.height);
-                    } else if (el.type === 'triangle') {
-                        tempCtx.fillStyle = el.color;
-                        tempCtx.beginPath();
-                        tempCtx.moveTo(el.x + el.width / 2 + i * 10, el.y);
-                        tempCtx.lineTo(el.x + i * 10, el.y + el.height);
-                        tempCtx.lineTo(el.x + el.width + i * 10, el.y + el.height);
-                        tempCtx.closePath();
-                        tempCtx.fill();
-                    } else if (el.type === 'star') {
-                        tempCtx.fillStyle = el.color;
-                        tempCtx.beginPath();
-                        el.points.forEach((p, idx) => {
-                            const x = el.x + p.x * el.scaleX + i * 10;
-                            const y = el.y + p.y * el.scaleY;
-                            if (idx === 0) tempCtx.moveTo(x, y);
-                            else tempCtx.lineTo(x, y);
-                        });
-                        tempCtx.closePath();
-                        tempCtx.fill();
-                    }
-                    tempCtx.globalAlpha = 1;
-                    tempCtx.filter = 'none';
-                    gifFrames.push(tempCanvas.toDataURL('image/png'));
+                    const maxFrames = Math.max(...layers.map(l => l.animationFrames || 1), 1);
+                    animationTimeline.forEach((anim, i) => {
+                        const keyframes = anim.keyframes.sort((a, b) => a.frame - b.frame);
+                        for (let frame = 0; frame < maxFrames; frame++) {
+                            code += `    frame_${i}_${frame} = base_img.copy()\n`;
+                            code += `    draw_${i}_${frame} = ImageDraw.Draw(frame_${i}_${frame})\n`;
+                            const kfBefore = keyframes.filter(k => k.frame <= frame).pop();
+                            const kfAfter = keyframes.find(k => k.frame > frame);
+                            let props = kfBefore ? { ...kfBefore.props } : anim.object.toObject();
+                            if (kfBefore && kfAfter) {
+                                const t = (frame - kfBefore.frame) / (kfAfter.frame - kfBefore.frame);
+                                props.left = kfBefore.props.left + (kfAfter.props.left - kfBefore.props.left) * t;
+                                props.top = kfBefore.props.top + (kfAfter.props.top - kfBefore.props.top) * t;
+                                props.scaleX = kfBefore.props.scaleX + (kfAfter.props.scaleX - kfBefore.props.scaleX) * t;
+                                props.scaleY = kfBefore.props.scaleY + (kfAfter.props.scaleY - kfBefore.props.scaleY) * t;
+                                props.angle = kfBefore.props.angle + (kfAfter.props.angle - kfBefore.props.angle) * t;
+                                props.opacity = kfBefore.props.opacity + (kfAfter.props.opacity - kfBefore.props.opacity) * t;
+                            }
+                            anim.object.set(props);
+                            code += exportShape(anim.object, `${i}_${frame}`);
+                            code += `    frames.append(frame_${i}_${frame})\n`;
+                        }
+                    });
+
+                    objects.filter(obj => !animationTimeline.some(a => a.object === obj)).forEach((obj, i) => {
+                        code += exportShape(obj, i);
+                    });
+
+                    code += `    frames[0].save("output.gif", save_all=True, append_images=frames[1:], duration=100, loop=0)\n\n`;
+                    code += 'if __name__ == "__main__":\n    create_gif()\n';
+                    zip.file('script_gif.py', code);
+                } else {
+                    code = 'from PIL import Image, ImageDraw, ImageFont, ImageFilter\n\n';
+                    code += 'def create_image():\n';
+                    code += `    img = Image.new("RGBA", (${Math.ceil(maxWidth)}, ${Math.ceil(maxHeight)}), (0, 0, 0, 0))\n`;
+                    code += '    draw = ImageDraw.Draw(img)\n\n';
+
+                    images.filter(img => img.isBackground).forEach((img, i) => code += exportImage(img, i, true));
+                    images.filter(img => !img.isBackground).forEach((img, i) => code += exportImage(img, i, false));
+                    objects.forEach((obj, i) => code += exportShape(obj, i));
+
+                    code += '    img.save("output.png")\n\n';
+                    code += 'if __name__ == "__main__":\n    create_image()\n';
+                    zip.file('script.py', code);
                 }
-            });
-            zip.file('output.gif', gifFrames[0].split(',')[1], { base64: true });
+                images.forEach(img => {
+                    const imgData = img.object.toDataURL({ format: 'png' });
+                    zip.file(img.fileName, imgData.split(',')[1], { base64: true });
+                });
+                break;
+
+            case 'javascript':
+                // Implementação semelhante para JavaScript com animação (necessita de canvas e bibliotecas adicionais)
+                break;
         }
 
-        zip.generateAsync({ type: 'blob' }).then((content) => {
-            saveAs(content, 'image_project.zip');
-        });
+        zip.generateAsync({ type: 'blob' }).then(content => saveAs(content, `image_project_${hasAnimation ? 'gif' : 'static'}.zip`));
     });
 
-    // Toggle Sidebar
+    // Toggle Sidebar e outros controles
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('toggleSidebar');
-    toggleBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('w-64');
-        sidebar.classList.toggle('w-16');
-        sidebar.querySelector('#properties').classList.toggle('hidden');
-        toggleBtn.querySelector('i').classList.toggle('fa-chevron-left');
-        toggleBtn.querySelector('i').classList.toggle('fa-chevron-right');
-    });
+    if (sidebar && toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            toggleBtn.querySelector('i')?.classList.toggle('fa-chevron-left');
+            toggleBtn.querySelector('i')?.classList.toggle('fa-chevron-right');
+        });
+    }
 
-    // Dependências externas
-    const scriptZip = document.createElement('script');
-    scriptZip.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    document.head.appendChild(scriptZip);
-
-    const scriptFileSaver = document.createElement('script');
-    scriptFileSaver.src = 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js';
-    document.head.appendChild(scriptFileSaver);
+    // Inicialização
+    updateLayersPanel();
+    updateTimeline();
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(() => console.log('Service Worker registrado'))
+            .catch(err => console.error('Erro ao registrar Service Worker:', err));
+    }
 });

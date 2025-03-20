@@ -1,0 +1,72 @@
+{
+    "objects": [
+      {
+        "type": "image",
+        "src": "background.png",
+        "left": 0,
+        "top": 0,
+        "width": 800,
+        "height": 600,
+        "scaleX": 1,
+        "scaleY": 1,
+        "selectable": false,
+        "layer": -1,
+        "isBackground": true
+      },
+      {
+        "type": "circle",
+        "radius": 50,
+        "left": 100,
+        "top": 100,
+        "fill": "#db2777",
+        "opacity": 0.8,
+        "stroke": "#ffffff",
+        "strokeWidth": 2,
+        "layer": 0,
+        "animationFrames": 10,
+        "keyframes": [
+          { "frame": 0, "props": { "left": 100, "top": 100, "scaleX": 1, "scaleY": 1, "opacity": 0.8 } },
+          { "frame": 5, "props": { "left": 150, "top": 150, "scaleX": 1.2, "scaleY": 1.2, "opacity": 1 } },
+          { "frame": 10, "props": { "left": 100, "top": 100, "scaleX": 1, "scaleY": 1, "opacity": 0.8 } }
+        ]
+      },
+      {
+        "type": "i-text",
+        "text": "Bem-vindo ao Futuro",
+        "left": 200,
+        "top": 250,
+        "fontSize": 40,
+        "fontFamily": "Helvetica",
+        "fill": "#ffffff",
+        "opacity": 1,
+        "shadow": { "color": "#4f46e5", "offsetX": 5, "offsetY": 5, "blur": 10 },
+        "layer": 1
+      },
+      {
+        "type": "polygon",
+        "points": [
+          { "x": 0, "y": -50 },
+          { "x": 40, "y": -20 },
+          { "x": 50, "y": 30 },
+          { "x": 0, "y": 50 },
+          { "x": -50, "y": 30 },
+          { "x": -40, "y": -20 }
+        ],
+        "left": 600,
+        "top": 500,
+        "fill": "#7c3aed",
+        "opacity": 0.9,
+        "scaleX": 1.5,
+        "scaleY": 1.5,
+        "stroke": "#ffffff",
+        "strokeWidth": 1,
+        "layer": 2,
+        "filters": [
+          { "type": "Blur", "blur": 0.5 }
+        ]
+      }
+    ],
+    "background": "#333",
+    "width": 800,
+    "height": 600
+  }
