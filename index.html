@@ -3,58 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Título otimizado -->
     <title>Image Creator Tool - Crie Imagens e Código para Bots e Jogos</title>
-    
-    <!-- Descrição para SEO -->
     <meta name="description" content="Crie imagens dinâmicas para bots do Discord, mods de jogos e mais com o Image Creator Tool. Exporte em Python, JavaScript, Lua, C#, Java, PHP e gere GIFs animados gratuitamente!">
-    
-    <!-- Palavras-chave -->
     <meta name="keywords" content="criador de imagens, editor de imagens online, bots Discord, mods MTA, gerar código, Python, JavaScript, Lua, C#, Java, PHP, GIF animado, ferramenta gratuita">
-    
-    <!-- Autor -->
     <meta name="author" content="RedeBots">
-    
-    <!-- Robots (permitir indexação) -->
     <meta name="robots" content="index, follow">
-    
-    <!-- Canonical URL -->
     <link rel="canonical" href="https://gui-edit-v2.redebots.shop/">
-    
-    <!-- Open Graph (para redes sociais) -->
     <meta property="og:title" content="Image Creator Tool - Crie Imagens e Código">
     <meta property="og:description" content="Ferramenta gratuita para criar imagens e exportar código para bots, jogos e projetos em várias linguagens. Experimente agora!">
     <meta property="og:url" content="https://gui-edit-v2.redebots.shop/">
     <meta property="og:type" content="website">
-    <meta property="og:image" content="https://gui-edit-v2.redebots.shop/assets/og-image.png"> <!-- Adicione uma imagem representativa -->
+    <meta property="og:image" content="https://gui-edit-v2.redebots.shop/assets/og-image.png">
     <meta property="og:site_name" content="Image Creator Tool">
-    
-    <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Image Creator Tool - Crie Imagens e Código">
     <meta name="twitter:description" content="Crie imagens e exporte código para bots e jogos em Python, JS, Lua e mais. Gratuito e fácil de usar!">
     <meta name="twitter:image" content="https://gui-edit-v2.redebots.shop/assets/og-image.png">
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/assets/favicon.png"> <!-- Adicione um favicon -->
-    
-    <!-- Tailwind CSS via CDN -->
+    <link rel="icon" type="image/png" href="/assets/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome via CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- Fabric.js via CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-900 text-white flex flex-col h-screen">
     <!-- Cabeçalho -->
-    <header class="bg-gray-800 p-4 flex justify-between items-center">
-        <h1 class="text-2xl font-bold">Image Creator Tool</h1>
+    <header class="bg-gray-800 p-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-2">
+            <i class="fas fa-paint-brush text-blue-500 text-2xl"></i>
+            <h1 class="text-2xl font-bold">Image Creator Tool</h1>
+        </div>
         <div class="space-x-2">
-            <button id="addText" class="bg-blue-600 p-2 rounded hover:bg-blue-700"><i class="fas fa-font"></i> Add Text</button>
-            <button id="addShape" class="bg-blue-600 p-2 rounded hover:bg-blue-700"><i class="fas fa-shapes"></i> Add Shape</button>
-            <button id="uploadImage" class="bg-blue-600 p-2 rounded hover:bg-blue-700"><i class="fas fa-upload"></i> Upload Base</button>
-            <select id="loadTemplate" class="p-2 bg-gray-700 rounded text-white">
+            <button id="addText" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-font"></i> Add Text</button>
+            <button id="addShape" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-shapes"></i> Add Shape</button>
+            <button id="uploadImage" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-upload"></i> Upload Base</button>
+            <select id="loadTemplate" class="p-2 bg-gray-700 rounded-lg text-white focus:outline-none">
                 <option value="">Load Template</option>
                 <option value="welcome">Welcome Card</option>
                 <option value="game_hud">Game HUD</option>
@@ -64,40 +46,47 @@
 
     <!-- Área Principal -->
     <main class="flex flex-1 overflow-hidden">
-        <!-- Sidebar com Opções -->
-        <aside class="w-64 bg-gray-800 p-4 overflow-y-auto">
-            <h2 class="text-lg font-semibold mb-4">Properties</h2>
+        <!-- Sidebar (recolhível) -->
+        <aside id="sidebar" class="w-64 bg-gray-800 p-4 overflow-y-auto transition-all duration-300">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold">Properties</h2>
+                <button id="toggleSidebar" class="text-gray-400 hover:text-white"><i class="fas fa-chevron-left"></i></button>
+            </div>
             <div id="properties" class="space-y-4">
                 <div>
-                    <label class="block">Text</label>
-                    <input id="textInput" type="text" class="w-full p-2 bg-gray-700 rounded text-white" placeholder="Enter text">
+                    <label class="block text-sm">Text</label>
+                    <input id="textInput" type="text" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" placeholder="Enter text">
                 </div>
                 <div>
-                    <label class="block">Font Size</label>
-                    <input id="fontSize" type="number" min="10" class="w-full p-2 bg-gray-700 rounded text-white" value="24">
+                    <label class="block text-sm">Font Size</label>
+                    <input id="fontSize" type="number" min="10" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="24">
                 </div>
                 <div>
-                    <label class="block">Color</label>
-                    <input id="color" type="color" class="w-full h-10 bg-gray-700 rounded">
+                    <label class="block text-sm">Color</label>
+                    <input id="color" type="color" class="w-full h-10 bg-gray-700 rounded-lg cursor-pointer">
                 </div>
                 <div>
-                    <label class="block">Animation (GIF Frames)</label>
-                    <input id="animationFrames" type="number" min="1" max="10" class="w-full p-2 bg-gray-700 rounded text-white" value="1">
+                    <label class="block text-sm">Animation (GIF Frames)</label>
+                    <input id="animationFrames" type="number" min="1" max="10" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="1">
                 </div>
             </div>
         </aside>
 
         <!-- Canvas -->
-        <section class="flex-1 p-4">
-            <canvas id="canvas" class="border border-gray-600 mx-auto"></canvas>
+        <section class="flex-1 p-6 flex justify-center items-center">
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+                <canvas id="canvas" class="rounded-md border border-gray-600"></canvas>
+            </div>
         </section>
     </main>
 
-    <!-- Rodapé com Exportação -->
-    <footer class="bg-gray-800 p-4 flex justify-between">
-        <button id="saveProject" class="bg-green-600 p-2 rounded hover:bg-green-700"><i class="fas fa-save"></i> Save Project</button>
-        <div class="space-x-2">
-            <select id="exportLang" class="p-2 bg-gray-700 rounded text-white">
+    <!-- Rodapé -->
+    <footer class="bg-gray-800 p-4 flex justify-between items-center shadow-inner">
+        <button id="saveProject" class="bg-green-600 p-2 rounded-lg hover:bg-green-700 transition flex items-center space-x-2">
+            <i class="fas fa-save"></i><span>Save Project</span>
+        </button>
+        <div class="flex space-x-2">
+            <select id="exportLang" class="p-2 bg-gray-700 rounded-lg text-white focus:outline-none">
                 <option value="python">Python</option>
                 <option value="javascript">JavaScript</option>
                 <option value="lua">Lua</option>
@@ -105,10 +94,24 @@
                 <option value="java">Java</option>
                 <option value="php">PHP</option>
             </select>
-            <button id="exportCode" class="bg-purple-600 p-2 rounded hover:bg-purple-700"><i class="fas fa-download"></i> Export</button>
+            <button id="exportCode" class="bg-purple-600 p-2 rounded-lg hover:bg-purple-700 transition flex items-center space-x-2">
+                <i class="fas fa-download"></i><span>Export</span>
+            </button>
         </div>
     </footer>
 
     <script src="script.js"></script>
+    <script>
+        // Toggle Sidebar
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggleSidebar');
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('w-64');
+            sidebar.classList.toggle('w-16');
+            sidebar.querySelector('#properties').classList.toggle('hidden');
+            toggleBtn.querySelector('i').classList.toggle('fa-chevron-left');
+            toggleBtn.querySelector('i').classList.toggle('fa-chevron-right');
+        });
+    </script>
 </body>
 </html>
