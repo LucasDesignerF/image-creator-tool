@@ -1,6 +1,6 @@
 // Inicialização do Canvas com Fabric.js
 const canvas = new fabric.Canvas('canvas', {
-    width: 800,  // Tamanho inicial, será ajustado dinamicamente
+    width: 800,  // Tamanho inicial
     height: 400,
     backgroundColor: '#333',
 });
@@ -38,7 +38,7 @@ document.getElementById('addShape').addEventListener('click', () => {
     updateProperties();
 });
 
-// Upload de imagem base (corrigido)
+// Upload de imagem base (corrigido para imagens grandes)
 document.getElementById('uploadImage').addEventListener('click', () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -48,23 +48,46 @@ document.getElementById('uploadImage').addEventListener('click', () => {
         const reader = new FileReader();
         reader.onload = (event) => {
             fabric.Image.fromURL(event.target.result, (img) => {
-                // Obtém as dimensões originais da imagem
+                // Dimensões originais da imagem
                 const imgWidth = img.width;
                 const imgHeight = img.height;
 
-                // Ajusta o tamanho do canvas para as dimensões da imagem
-                canvas.setWidth(imgWidth);
-                canvas.setHeight(imgHeight);
+                // Define um tamanho máximo para o canvas (ex.: 2000px de largura)
+                const maxCanvasWidth = 2000;
+                let canvasWidth = imgWidth;
+                let canvasHeight = imgHeight;
+                let scaleFactor = 1;
 
-                // Centraliza a imagem no canvas (sem escala ou corte)
+                // Se a imagem for maior que o limite, escala proporcionalmente
+                if (imgWidth > maxCanvasWidth) {
+                    scaleFactor = maxCanvasWidth / imgWidth;
+                    canvasWidth = maxCanvasWidth;
+                    canvasHeight = imgHeight * scaleFactor;
+                }
+
+                // Ajusta o tamanho do canvas
+                canvas.setWidth(canvasWidth);
+                canvas.setHeight(canvasHeight);
+
+                // Aplica a escala à imagem e centraliza
                 img.set({
+                    scaleX: scaleFactor,
+                    scaleY: scaleFactor,
                     left: 0,
                     top: 0,
-                    selectable: false, // Impede que a imagem de fundo seja movida
+                    selectable: false, // Impede movimentação da imagem de fundo
                 });
 
                 // Define como fundo e renderiza
-                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+                canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                    scaleX: scaleFactor,
+                    scaleY: scaleFactor,
+                    left: 0,
+                    top: 0,
+                });
+            }, {
+                // Configurações adicionais para garantir que a imagem carregue corretamente
+                crossOrigin: 'anonymous',
             });
         };
         reader.readAsDataURL(file);
@@ -167,7 +190,7 @@ document.getElementById('exportCode').addEventListener('click', () => {
             break;
         case 'javascript':
             code = `const { createCanvas, loadImage } = require('canvas');\n\n`;
-            code += `async function createImage() {\n    const canvas = createCanvas(${canvas.width}, ${canvas.height});\n    const ctx = canvas.getContext('2d');\n    const img = await loadImage('base.png');\n    ctx.drawImage(img, 0, 0);\n`;
+            code += `async function createImage() {\n    const canvas = createCanvas(${canvas.width}, ${canvas.height});\n    const ctx = canvas.getContext('2d');\n    const img = await loadImage('base.png');\n    ctx.drawImage(img, 0, 0, ${canvas.width}, ${canvas.height});\n`;
             elements.forEach((el) => {
                 if (el.type === 'text') {
                     code += `    ctx.fillStyle = "${el.color}";\n    ctx.font = "${el.size}px Arial";\n`;
