@@ -16,10 +16,15 @@
     <!-- Cabeçalho -->
     <header class="bg-gray-800 p-4 flex justify-between items-center">
         <h1 class="text-2xl font-bold">Image Creator Tool</h1>
-        <div>
+        <div class="space-x-2">
             <button id="addText" class="bg-blue-600 p-2 rounded hover:bg-blue-700"><i class="fas fa-font"></i> Add Text</button>
             <button id="addShape" class="bg-blue-600 p-2 rounded hover:bg-blue-700"><i class="fas fa-shapes"></i> Add Shape</button>
             <button id="uploadImage" class="bg-blue-600 p-2 rounded hover:bg-blue-700"><i class="fas fa-upload"></i> Upload Base</button>
+            <select id="loadTemplate" class="p-2 bg-gray-700 rounded text-white">
+                <option value="">Load Template</option>
+                <option value="welcome">Welcome Card</option>
+                <option value="game_hud">Game HUD</option>
+            </select>
         </div>
     </header>
 
@@ -41,6 +46,10 @@
                     <label class="block">Color</label>
                     <input id="color" type="color" class="w-full h-10 bg-gray-700 rounded">
                 </div>
+                <div>
+                    <label class="block">Animation (GIF Frames)</label>
+                    <input id="animationFrames" type="number" min="1" max="10" class="w-full p-2 bg-gray-700 rounded text-white" value="1">
+                </div>
             </div>
         </aside>
 
@@ -59,6 +68,8 @@
                 <option value="javascript">JavaScript</option>
                 <option value="lua">Lua</option>
                 <option value="csharp">C#</option>
+                <option value="java">Java</option>
+                <option value="php">PHP</option>
             </select>
             <button id="exportCode" class="bg-purple-600 p-2 rounded hover:bg-purple-700"><i class="fas fa-download"></i> Export</button>
         </div>
