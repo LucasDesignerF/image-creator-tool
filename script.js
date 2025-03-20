@@ -1,6 +1,6 @@
 // Inicialização do Canvas com Fabric.js
 const canvas = new fabric.Canvas('canvas', {
-    width: 800,
+    width: 800,  // Tamanho inicial, será ajustado dinamicamente
     height: 400,
     backgroundColor: '#333',
 });
@@ -38,7 +38,7 @@ document.getElementById('addShape').addEventListener('click', () => {
     updateProperties();
 });
 
-// Upload de imagem base
+// Upload de imagem base (corrigido)
 document.getElementById('uploadImage').addEventListener('click', () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -48,7 +48,22 @@ document.getElementById('uploadImage').addEventListener('click', () => {
         const reader = new FileReader();
         reader.onload = (event) => {
             fabric.Image.fromURL(event.target.result, (img) => {
-                img.scaleToWidth(800);
+                // Obtém as dimensões originais da imagem
+                const imgWidth = img.width;
+                const imgHeight = img.height;
+
+                // Ajusta o tamanho do canvas para as dimensões da imagem
+                canvas.setWidth(imgWidth);
+                canvas.setHeight(imgHeight);
+
+                // Centraliza a imagem no canvas (sem escala ou corte)
+                img.set({
+                    left: 0,
+                    top: 0,
+                    selectable: false, // Impede que a imagem de fundo seja movida
+                });
+
+                // Define como fundo e renderiza
                 canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
             });
         };
@@ -115,7 +130,7 @@ document.getElementById('animationFrames').addEventListener('input', (e) => {
 
 // Salvar projeto no localStorage
 document.getElementById('saveProject').addEventListener('click', () => {
-    const project = canvas.toJSON(['animationFrames']); // Inclui propriedade customizada
+    const project = canvas.toJSON(['animationFrames']);
     localStorage.setItem('imageCreatorProject', JSON.stringify(project));
     alert('Projeto salvo com sucesso!');
 });
@@ -127,7 +142,6 @@ document.getElementById('exportCode').addEventListener('click', () => {
     let code = '';
     const elements = [];
 
-    // Gerar elementos e animações
     objects.forEach((obj, index) => {
         const frames = obj.animationFrames || 1;
         if (obj.type === 'text') {
@@ -137,7 +151,6 @@ document.getElementById('exportCode').addEventListener('click', () => {
         }
     });
 
-    // Gerar código baseado na linguagem
     switch (lang) {
         case 'python':
             code = `from PIL import Image, ImageDraw, ImageFont\n\n`;
@@ -154,7 +167,7 @@ document.getElementById('exportCode').addEventListener('click', () => {
             break;
         case 'javascript':
             code = `const { createCanvas, loadImage } = require('canvas');\n\n`;
-            code += `async function createImage() {\n    const canvas = createCanvas(800, 400);\n    const ctx = canvas.getContext('2d');\n    const img = await loadImage('base.png');\n    ctx.drawImage(img, 0, 0);\n`;
+            code += `async function createImage() {\n    const canvas = createCanvas(${canvas.width}, ${canvas.height});\n    const ctx = canvas.getContext('2d');\n    const img = await loadImage('base.png');\n    ctx.drawImage(img, 0, 0);\n`;
             elements.forEach((el) => {
                 if (el.type === 'text') {
                     code += `    ctx.fillStyle = "${el.color}";\n    ctx.font = "${el.size}px Arial";\n`;
@@ -221,7 +234,6 @@ document.getElementById('exportCode').addEventListener('click', () => {
             break;
     }
 
-    // Criar ZIP com código, elementos e GIF (se aplicável)
     const zip = new JSZip();
     const ext = lang === 'python' ? 'py' : lang === 'javascript' ? 'js' : lang === 'lua' ? 'lua' : lang === 'csharp' ? 'cs' : lang === 'java' ? 'java' : 'php';
     zip.file(`script.${ext}`, code);
@@ -229,7 +241,6 @@ document.getElementById('exportCode').addEventListener('click', () => {
         zip.file(`element_${i}_${el.type}.json`, JSON.stringify(el));
     });
 
-    // Suporte a GIF (simples: duplicar frames com deslocamento)
     const hasAnimation = elements.some(el => el.frames > 1);
     if (hasAnimation) {
         const gifFrames = [];
@@ -240,12 +251,12 @@ document.getElementById('exportCode').addEventListener('click', () => {
                 tempCanvas.height = canvas.height;
                 const tempCtx = tempCanvas.getContext('2d');
                 if (canvas.backgroundImage) {
-                    tempCtx.drawImage(canvas.backgroundImage.getElement(), 0, 0, 800, 400);
+                    tempCtx.drawImage(canvas.backgroundImage.getElement(), 0, 0, canvas.width, canvas.height);
                 }
                 if (el.type === 'text') {
                     tempCtx.font = `${el.size}px Arial`;
                     tempCtx.fillStyle = el.color;
-                    tempCtx.fillText(el.text, el.x + i * 10, el.y); // Deslocamento simples
+                    tempCtx.fillText(el.text, el.x + i * 10, el.y);
                 } else if (el.type === 'circle') {
                     tempCtx.fillStyle = el.color;
                     tempCtx.beginPath();
@@ -255,8 +266,6 @@ document.getElementById('exportCode').addEventListener('click', () => {
                 gifFrames.push(tempCanvas.toDataURL('image/png'));
             }
         });
-        // Aqui seria necessário uma lib como gif.js para criar o GIF no cliente
-        // Por simplicidade, adicionamos apenas o primeiro frame como exemplo
         zip.file('output.gif', gifFrames[0].split(',')[1], { base64: true });
     }
 
