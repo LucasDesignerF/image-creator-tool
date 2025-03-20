@@ -23,7 +23,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-gray-900 text-white flex flex-col h-screen">
     <!-- Cabeçalho -->
@@ -32,9 +31,12 @@
             <i class="fas fa-paint-brush text-blue-500 text-2xl"></i>
             <h1 class="text-2xl font-bold">Image Creator Tool</h1>
         </div>
-        <div class="space-x-2">
+        <div class="space-x-2 flex flex-wrap">
             <button id="addText" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-font"></i> Add Text</button>
-            <button id="addShape" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-shapes"></i> Add Shape</button>
+            <button id="addCircle" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-circle"></i> Add Circle</button>
+            <button id="addRect" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-square"></i> Add Rectangle</button>
+            <button id="addTriangle" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-play"></i> Add Triangle</button>
+            <button id="addStar" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-star"></i> Add Star</button>
             <button id="uploadImage" class="bg-blue-600 p-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-upload"></i> Upload Base</button>
             <select id="loadTemplate" class="p-2 bg-gray-700 rounded-lg text-white focus:outline-none">
                 <option value="">Load Template</option>
@@ -62,20 +64,44 @@
                     <input id="fontSize" type="number" min="10" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="24">
                 </div>
                 <div>
+                    <label class="block text-sm">Width (X)</label>
+                    <input id="width" type="number" min="1" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="100">
+                </div>
+                <div>
+                    <label class="block text-sm">Height (Y)</label>
+                    <input id="height" type="number" min="1" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="100">
+                </div>
+                <div class="flex items-center">
+                    <input id="lockAspect" type="checkbox" class="mr-2">
+                    <label class="text-sm">Lock Aspect Ratio</label>
+                </div>
+                <div>
                     <label class="block text-sm">Color</label>
                     <input id="color" type="color" class="w-full h-10 bg-gray-700 rounded-lg cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-sm">Opacity (0-100%)</label>
+                    <input id="opacity" type="number" min="0" max="100" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="100">
+                </div>
+                <div>
+                    <label class="block text-sm">Blur (0-10px)</label>
+                    <input id="blur" type="number" min="0" max="10" step="0.1" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="0">
                 </div>
                 <div>
                     <label class="block text-sm">Animation (GIF Frames)</label>
                     <input id="animationFrames" type="number" min="1" max="10" class="w-full p-2 bg-gray-700 rounded-lg text-white focus:outline-none" value="1">
                 </div>
+                <div class="space-y-2">
+                    <button id="centerElement" class="w-full bg-gray-600 p-2 rounded-lg hover:bg-gray-700 transition">Center Element</button>
+                    <button id="alignElements" class="w-full bg-gray-600 p-2 rounded-lg hover:bg-gray-700 transition">Align to Selected</button>
+                </div>
             </div>
         </aside>
 
         <!-- Canvas -->
-        <section class="flex-1 p-6 flex justify-center items-center">
+        <section class="flex-1 p-6 flex justify-center items-center overflow-auto">
             <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
-                <canvas id="canvas" class="rounded-md border border-gray-600"></canvas>
+                <canvas id="canvas" class="rounded-md border border-gray-600 max-w-full h-auto"></canvas>
             </div>
         </section>
     </main>
