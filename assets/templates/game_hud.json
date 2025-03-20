@@ -1,0 +1,22 @@
+{
+    "objects": [
+        {
+            "type": "text",
+            "text": "Health: 100",
+            "left": 20,
+            "top": 20,
+            "fontSize": 24,
+            "fill": "#ff0000",
+            "animationFrames": 3
+        },
+        {
+            "type": "circle",
+            "radius": 30,
+            "left": 700,
+            "top": 20,
+            "fill": "#0000ff",
+            "animationFrames": 1
+        }
+    ],
+    "background": null
+}
