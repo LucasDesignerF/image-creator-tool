@@ -1,5 +1,0 @@
-/* Adiciona estilos específicos que o Tailwind não cobre diretamente */
-#canvas {
-    max-width: 100%;
-    height: auto;
-}
