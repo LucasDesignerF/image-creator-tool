@@ -100,7 +100,7 @@
 
         <!-- Canvas -->
         <section class="flex-1 p-6 flex justify-center items-center overflow-auto">
-            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg" id="canvasContainer">
                 <canvas id="canvas" class="rounded-md border border-gray-600 max-w-full h-auto"></canvas>
             </div>
         </section>
@@ -127,17 +127,5 @@
     </footer>
 
     <script src="script.js"></script>
-    <script>
-        // Toggle Sidebar
-        const sidebar = document.getElementById('sidebar');
-        const toggleBtn = document.getElementById('toggleSidebar');
-        toggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('w-64');
-            sidebar.classList.toggle('w-16');
-            sidebar.querySelector('#properties').classList.toggle('hidden');
-            toggleBtn.querySelector('i').classList.toggle('fa-chevron-left');
-            toggleBtn.querySelector('i').classList.toggle('fa-chevron-right');
-        });
-    </script>
 </body>
 </html>
