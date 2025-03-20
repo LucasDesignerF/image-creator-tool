@@ -1,0 +1,22 @@
+{
+    "objects": [
+        {
+            "type": "text",
+            "text": "Welcome, User!",
+            "left": 50,
+            "top": 100,
+            "fontSize": 36,
+            "fill": "#ffffff",
+            "animationFrames": 1
+        },
+        {
+            "type": "circle",
+            "radius": 40,
+            "left": 20,
+            "top": 20,
+            "fill": "#00ff00",
+            "animationFrames": 1
+        }
+    ],
+    "background": null
+}
