@@ -14,7 +14,4 @@ Uma ferramenta online para criar imagens dinâmicas e exportar código em vária
 - Fabric.js (CDN)
 - JSZip e FileSaver.js (para exportação ZIP)
 
-## Hospedar no GitHub Pages
-1. Faça upload deste repositório no GitHub.
-2. Ative o GitHub Pages nas configurações do repositório.
-3. Acesse a URL gerada.
+
