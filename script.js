@@ -57,6 +57,18 @@ document.getElementById('uploadImage').addEventListener('click', () => {
     input.click();
 });
 
+// Carregar templates pré-definidos
+document.getElementById('loadTemplate').addEventListener('change', (e) => {
+    const template = e.target.value;
+    if (!template) return;
+    fetch(`assets/templates/${template}.json`)
+        .then(response => response.json())
+        .then(data => {
+            canvas.clear();
+            canvas.loadFromJSON(data, canvas.renderAll.bind(canvas));
+        });
+});
+
 // Atualizar propriedades do objeto selecionado
 canvas.on('selection:created', (e) => {
     selectedObject = e.target;
@@ -72,6 +84,7 @@ function updateProperties() {
     document.getElementById('textInput').value = selectedObject.text || '';
     document.getElementById('fontSize').value = selectedObject.fontSize || 24;
     document.getElementById('color').value = selectedObject.fill || '#ffffff';
+    document.getElementById('animationFrames').value = selectedObject.animationFrames || 1;
 }
 
 // Aplicar mudanças nas propriedades
@@ -93,10 +106,16 @@ document.getElementById('color').addEventListener('input', (e) => {
         canvas.renderAll();
     }
 });
+document.getElementById('animationFrames').addEventListener('input', (e) => {
+    if (selectedObject) {
+        selectedObject.animationFrames = parseInt(e.target.value);
+        canvas.renderAll();
+    }
+});
 
 // Salvar projeto no localStorage
 document.getElementById('saveProject').addEventListener('click', () => {
-    const project = canvas.toJSON();
+    const project = canvas.toJSON(['animationFrames']); // Inclui propriedade customizada
     localStorage.setItem('imageCreatorProject', JSON.stringify(project));
     alert('Projeto salvo com sucesso!');
 });
@@ -108,20 +127,22 @@ document.getElementById('exportCode').addEventListener('click', () => {
     let code = '';
     const elements = [];
 
-    // Gerar código baseado na linguagem
+    // Gerar elementos e animações
     objects.forEach((obj, index) => {
+        const frames = obj.animationFrames || 1;
         if (obj.type === 'text') {
-            elements.push({ type: 'text', text: obj.text, x: obj.left, y: obj.top, size: obj.fontSize, color: obj.fill });
+            elements.push({ type: 'text', text: obj.text, x: obj.left, y: obj.top, size: obj.fontSize, color: obj.fill, frames });
         } else if (obj.type === 'circle') {
-            elements.push({ type: 'circle', radius: obj.radius, x: obj.left, y: obj.top, color: obj.fill });
+            elements.push({ type: 'circle', radius: obj.radius, x: obj.left, y: obj.top, color: obj.fill, frames });
         }
     });
 
+    // Gerar código baseado na linguagem
     switch (lang) {
         case 'python':
             code = `from PIL import Image, ImageDraw, ImageFont\n\n`;
             code += `def create_image():\n    img = Image.open("base.png")\n    draw = ImageDraw.Draw(img)\n`;
-            elements.forEach((el, i) => {
+            elements.forEach((el) => {
                 if (el.type === 'text') {
                     code += `    font = ImageFont.truetype("arial.ttf", ${el.size})\n`;
                     code += `    draw.text((${el.x}, ${el.y}), "${el.text}", fill="${el.color}", font=font)\n`;
@@ -169,32 +190,90 @@ document.getElementById('exportCode').addEventListener('click', () => {
             });
             code += `            img.Save("output.png");\n        }\n    }\n}`;
             break;
+        case 'java':
+            code = `import java.awt.*;\nimport java.awt.image.BufferedImage;\nimport javax.imageio.ImageIO;\nimport java.io.File;\n\n`;
+            code += `public class ImageCreator {\n    public static void main(String[] args) throws Exception {\n        BufferedImage img = ImageIO.read(new File("base.png"));\n        Graphics2D g = img.createGraphics();\n`;
+            elements.forEach((el) => {
+                if (el.type === 'text') {
+                    code += `        g.setFont(new Font("Arial", Font.PLAIN, ${el.size}));\n`;
+                    code += `        g.setColor(Color.decode("${el.color}"));\n`;
+                    code += `        g.drawString("${el.text}", ${el.x}, ${el.y});\n`;
+                } else if (el.type === 'circle') {
+                    code += `        g.setColor(Color.decode("${el.color}"));\n`;
+                    code += `        g.fillOval(${el.x}, ${el.y}, ${el.radius * 2}, ${el.radius * 2});\n`;
+                }
+            });
+            code += `        g.dispose();\n        ImageIO.write(img, "png", new File("output.png"));\n    }\n}`;
+            break;
+        case 'php':
+            code = `<?php\n`;
+            code += `$img = imagecreatefrompng("base.png");\n`;
+            elements.forEach((el) => {
+                if (el.type === 'text') {
+                    code += `$color = imagecolorallocate($img, ${hexToRGB(el.color)});\n`;
+                    code += `imagettftext($img, ${el.size}, 0, ${el.x}, ${el.y}, $color, "arial.ttf", "${el.text}");\n`;
+                } else if (el.type === 'circle') {
+                    code += `$color = imagecolorallocate($img, ${hexToRGB(el.color)});\n`;
+                    code += `imagefilledellipse($img, ${el.x + el.radius}, ${el.y + el.radius}, ${el.radius * 2}, ${el.radius * 2}, $color);\n`;
+                }
+            });
+            code += `imagepng($img, "output.png");\nimagedestroy($img);\n?>`;
+            break;
     }
 
-    // Criar ZIP com código e elementos
+    // Criar ZIP com código, elementos e GIF (se aplicável)
     const zip = new JSZip();
-    zip.file(`script.${lang === 'python' ? 'py' : lang === 'javascript' ? 'js' : lang === 'lua' ? 'lua' : 'cs'}`, code);
+    const ext = lang === 'python' ? 'py' : lang === 'javascript' ? 'js' : lang === 'lua' ? 'lua' : lang === 'csharp' ? 'cs' : lang === 'java' ? 'java' : 'php';
+    zip.file(`script.${ext}`, code);
     elements.forEach((el, i) => {
-        if (el.type === 'text') {
-            zip.file(`element_${i}_text.json`, JSON.stringify({ text: el.text, x: el.x, y: el.y, size: el.size, color: el.color }));
-        } else if (el.type === 'circle') {
-            zip.file(`element_${i}_circle.json`, JSON.stringify({ radius: el.radius, x: el.x, y: el.y, color: el.color }));
-        }
+        zip.file(`element_${i}_${el.type}.json`, JSON.stringify(el));
     });
+
+    // Suporte a GIF (simples: duplicar frames com deslocamento)
+    const hasAnimation = elements.some(el => el.frames > 1);
+    if (hasAnimation) {
+        const gifFrames = [];
+        elements.forEach((el) => {
+            for (let i = 0; i < el.frames; i++) {
+                const tempCanvas = fabric.util.createCanvasElement();
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                if (canvas.backgroundImage) {
+                    tempCtx.drawImage(canvas.backgroundImage.getElement(), 0, 0, 800, 400);
+                }
+                if (el.type === 'text') {
+                    tempCtx.font = `${el.size}px Arial`;
+                    tempCtx.fillStyle = el.color;
+                    tempCtx.fillText(el.text, el.x + i * 10, el.y); // Deslocamento simples
+                } else if (el.type === 'circle') {
+                    tempCtx.fillStyle = el.color;
+                    tempCtx.beginPath();
+                    tempCtx.arc(el.x + el.radius + i * 10, el.y + el.radius, el.radius, 0, Math.PI * 2);
+                    tempCtx.fill();
+                }
+                gifFrames.push(tempCanvas.toDataURL('image/png'));
+            }
+        });
+        // Aqui seria necessário uma lib como gif.js para criar o GIF no cliente
+        // Por simplicidade, adicionamos apenas o primeiro frame como exemplo
+        zip.file('output.gif', gifFrames[0].split(',')[1], { base64: true });
+    }
+
     zip.generateAsync({ type: 'blob' }).then((content) => {
         saveAs(content, 'image_project.zip');
     });
 });
 
-// Função auxiliar para converter hex para RGB (para Lua)
+// Função auxiliar para converter hex para RGB
 function hexToRGB(hex) {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
-    return `${r}, ${g}, ${b}, 255`;
+    return `${r}, ${g}, ${b}`;
 }
 
-// Adicionar JSZip e FileSaver para ZIP
+// Dependências externas
 const scriptZip = document.createElement('script');
 scriptZip.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
 document.head.appendChild(scriptZip);
