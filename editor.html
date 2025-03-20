@@ -2,220 +2,329 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#4f46e5">
-    <meta name="description" content="Image Creator Tool - Editor de imagens avançado para criar designs e animações. Desenvolvido por Code Projects e Rede Gamer por LucasDEV.">
-    <meta name="author" content="Code Projects, Rede Gamer, LucasDEV">
-    <meta name="keywords" content="editor de imagens, design, animação, Image Creator Tool">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Image Creator Tool - Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Creator Tool</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Fabric.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <!-- JSZip e FileSaver -->
+    <!-- JSZip e FileSaver.js para exportação -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <!-- Nosso script.js -->
-    <script src="script.js" defer></script>
-    <!-- Service Worker -->
-    <script src="service-worker.js" defer></script>
     <style>
+        /* Estilos personalizados */
         body {
-            overscroll-behavior: none;
-            touch-action: pan-y;
+            background: linear-gradient(45deg, #1e1e2f, #2a2a3d, #3b3b52, #4f46e5);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
         }
-        * {
-            transition: all 0.3s ease-in-out;
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
-        #sidebar {
-            transform: translateX(-100%);
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.1);
+            transform: perspective(1000px) rotateX(2deg) rotateY(-2deg);
+            transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease;
         }
-        #sidebar.open {
-            transform: translateX(0);
+
+        .panel:hover {
+            transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
         }
-        @media (min-width: 640px) {
-            #sidebar {
+
+        .btn-3d {
+            background: linear-gradient(135deg, #db2777, #9333ea);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-3d:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-3d:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #canvasContainer {
+            border: 2px dashed #4b5563;
+            border-radius: 8px;
+            transition: border-color 0.3s ease;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: 50%;
+                bottom: -50%;
+                left: 0;
+                transform: translateY(100%);
+                border-radius: 12px 12px 0 0;
+                background: rgba(255, 255, 255, 0.05);
+                backdrop-filter: blur(10px);
+                box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+            }
+
+            .sidebar.open {
+                transform: translateY(0);
+                bottom: 0;
+            }
+
+            #canvasContainer {
+                width: 100%;
+                height: 50vh;
+            }
+
+            .panel {
                 transform: none;
             }
-            #toggleSidebar {
+
+            .panel:hover {
+                transform: none;
+            }
+
+            .desktop-tools {
                 display: none;
             }
         }
-        .canvas-container {
-            width: 100%;
-            height: calc(100vh - 8rem);
+
+        @media (min-width: 769px) {
+            .sidebar {
+                display: none;
+            }
         }
-        .layer-item, .timeline-track {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            background: rgba(0, 0, 0, 0.8);
-            border-radius: 0.375rem;
-        }
-        .keyframe {
-            width: 1rem;
-            height: 1rem;
-            background: #db2777;
-            border-radius: 50%;
-            cursor: pointer;
-        }
+
         .timeline-frames button {
-            padding: 0.25rem 0.5rem;
             background: #4f46e5;
-            border-radius: 0.375rem;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s ease;
         }
+
         .timeline-frames button.active {
             background: #db2777;
         }
-        #loadTemplate:focus {
-            outline: none;
-            ring: 2px solid #db2777;
+
+        .keyframe {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin: 2px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .keyframe:hover {
+            transform: scale(1.2);
+        }
+
+        .toolbar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-white font-sans antialiased">
-    <!-- Header -->
-    <header class="fixed top-0 left-0 w-full h-16 bg-black bg-opacity-90 z-20 flex items-center justify-between px-4 shadow-lg">
-        <div class="flex items-center space-x-2">
-            <a href="index.html" class="text-xl font-bold text-pink-300">Image Creator Tool</a>
-            <button id="undo" class="p-2 hover:bg-pink-700 rounded-full"><i class="fas fa-undo"></i></button>
-            <button id="redo" class="p-2 hover:bg-pink-700 rounded-full"><i class="fas fa-redo"></i></button>
-        </div>
-        <div class="flex items-center space-x-2">
-            <button id="saveProject" class="p-2 hover:bg-pink-700 rounded-full"><i class="fas fa-save"></i></button>
-            <button id="loadProject" class="p-2 hover:bg-pink-700 rounded-full"><i class="fas fa-folder-open"></i></button>
-            <button id="exportCode" class="p-2 hover:bg-pink-700 rounded-full"><i class="fas fa-download"></i></button>
-            <select id="exportLang" class="bg-transparent border-none text-pink-300 focus:outline-none text-sm">
-                <option value="python">Python</option>
-                <option value="javascript">JavaScript</option>
-            </select>
-            <button id="toggleSidebar" class="p-2 hover:bg-pink-700 rounded-full sm:hidden"><i class="fas fa-bars"></i></button>
-        </div>
-    </header>
-
-    <!-- Sidebar -->
-    <aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-black bg-opacity-90 z-10 flex flex-col p-4 space-y-4 overflow-y-auto">
-        <div class="space-y-2">
-            <h3 class="text-lg font-semibold text-indigo-300">Ferramentas</h3>
-            <button id="addText" class="w-full p-2 bg-pink-600 hover:bg-pink-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-font"></i><span>Texto</span></button>
-            <button id="addCircle" class="w-full p-2 bg-pink-600 hover:bg-pink-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-circle"></i><span>Círculo</span></button>
-            <button id="addRect" class="w-full p-2 bg-pink-600 hover:bg-pink-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-square"></i><span>Retângulo</span></button>
-            <button id="addTriangle" class="w-full p-2 bg-pink-600 hover:bg-pink-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-play"></i><span>Triângulo</span></button>
-            <button id="addStar" class="w-full p-2 bg-pink-600 hover:bg-pink-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-star"></i><span>Estrela</span></button>
-            <button id="addLine" class="w-full p-2 bg-pink-600 hover:bg-pink-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-minus"></i><span>Linha</span></button>
-            <button id="uploadImage" class="w-full p-2 bg-pink-600 hover:bg-pink-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-image"></i><span>Imagem</span></button>
-        </div>
-        <div class="space-y-2">
-            <h3 class="text-lg font-semibold text-indigo-300">Manipulação</h3>
-            <button id="centerElement" class="w-full p-2 bg-indigo-600 hover:bg-indigo-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-align-center"></i><span>Centralizar</span></button>
-            <button id="alignElements" class="w-full p-2 bg-indigo-600 hover:bg-indigo-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-align-justify"></i><span>Alinhar</span></button>
-            <button id="duplicateElement" class="w-full p-2 bg-indigo-600 hover:bg-indigo-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-copy"></i><span>Duplicar</span></button>
-            <button id="groupElements" class="w-full p-2 bg-indigo-600 hover:bg-indigo-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-object-group"></i><span>Agrupar</span></button>
-            <button id="ungroupElements" class="w-full p-2 bg-indigo-600 hover:bg-indigo-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-object-ungroup"></i><span>Desagrupar</span></button>
-        </div>
-        <div class="space-y-2">
-            <h3 class="text-lg font-semibold text-indigo-300">Zoom</h3>
-            <button id="zoomIn" class="w-full p-2 bg-purple-600 hover:bg-purple-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-search-plus"></i><span>Zoom In</span></button>
-            <button id="zoomOut" class="w-full p-2 bg-purple-600 hover:bg-purple-700 rounded flex items-center space-x-2 text-sm"><i class="fas fa-search-minus"></i><span>Zoom Out</span></button>
-        </div>
-        <div class="space-y-2">
-            <h3 class="text-lg font-semibold text-indigo-300">Templates</h3>
-            <select id="loadTemplate" class="w-full p-2 bg-transparent border border-pink-300 rounded text-pink-300 text-sm focus:ring-2 focus:ring-pink-300">
-                <option value="">Selecione um Template</option>
-                <option value="template1">Template 1</option>
-                <option value="template2">Template 2</option>
+<body class="text-white">
+    <!-- Barra de Ferramentas Superior -->
+    <div class="toolbar fixed top-0 left-0 w-full p-4 flex justify-between items-center z-50">
+        <div class="flex space-x-4">
+            <button id="undo" class="btn-3d"><i class="fas fa-undo"></i> Desfazer</button>
+            <button id="redo" class="btn-3d"><i class="fas fa-redo"></i> Refazer</button>
+            <select id="loadTemplate" class="bg-gray-800 text-white p-2 rounded">
+                <option value="">Carregar Template</option>
+                <option value="template1">Template 1 (Estático)</option>
+                <option value="template2">Template 2 (Estático)</option>
                 <option value="template3">Template 3 (GIF)</option>
             </select>
         </div>
-    </aside>
-
-    <!-- Main -->
-    <main class="flex-1 sm:ml-64 mt-16 h-[calc(100vh-4rem)] flex flex-col">
-        <div id="canvasContainer" class="canvas-container flex items-center justify-center p-2 sm:p-4">
-            <canvas id="canvas" class="border-2 border-pink-300 rounded-lg shadow-xl max-w-full max-h-full"></canvas>
+        <div class="flex space-x-4">
+            <button id="saveProject" class="btn-3d"><i class="fas fa-save"></i> Salvar</button>
+            <button id="loadProject" class="btn-3d"><i class="fas fa-upload"></i> Carregar</button>
+            <button id="exportCode" class="btn-3d"><i class="fas fa-code"></i> Exportar</button>
+            <select id="exportLang" class="bg-gray-800 text-white p-2 rounded">
+                <option value="javascript">JavaScript</option>
+                <option value="lua">Lua</option>
+                <option value="php">PHP</option>
+                <option value="csharp">C#</option>
+                <option value="cpp">C++</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="python">Python</option>
+            </select>
         </div>
-        <div class="flex flex-col sm:flex-row sm:space-x-4 p-2 sm:p-4 bg-black bg-opacity-80">
-            <div id="properties" class="w-full sm:w-1/2 p-4 bg-purple-900 bg-opacity-90 rounded-lg space-y-2 overflow-y-auto max-h-64">
-                <h3 class="text-lg font-semibold text-indigo-300">Propriedades</h3>
-                <div class="grid grid-cols-2 gap-2 text-sm">
-                    <div><label class="text-pink-300">Texto</label><input id="textInput" type="text" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Fonte</label><input id="fontSize" type="number" min="1" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Família</label><select id="fontFamily" class="w-full p-1 bg-transparent border border-indigo-300 rounded"><option value="Arial">Arial</option><option value="Helvetica">Helvetica</option><option value="Times New Roman">Times New Roman</option></select></div>
-                    <div><label class="text-pink-300">Largura</label><input id="width" type="number" min="1" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Altura</label><input id="height" type="number" min="1" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Cor</label><input id="color" type="color" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Opacidade</label><input id="opacity" type="number" min="0" max="100" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Desfoque</label><input id="blur" type="number" min="0" step="0.1" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Brilho</label><input id="brightness" type="number" min="-100" max="100" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Contraste</label><input id="contrast" type="number" min="-100" max="100" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Frames</label><input id="animationFrames" type="number" min="1" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Rotação</label><input id="rotation" type="number" min="0" max="360" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Inclinação X</label><input id="skewX" type="number" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Inclinação Y</label><input id="skewY" type="number" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Traço</label><input id="strokeWidth" type="number" min="0" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Cor Traço</label><input id="strokeColor" type="color" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Sombra X</label><input id="shadowOffsetX" type="number" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Sombra Y</label><input id="shadowOffsetY" type="number" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Desfoque Sombra</label><input id="shadowBlur" type="number" min="0" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div><label class="text-pink-300">Cor Sombra</label><input id="shadowColor" type="color" class="w-full p-1 bg-transparent border border-indigo-300 rounded"></div>
-                    <div class="col-span-2 flex items-center space-x-2"><input id="lockAspect" type="checkbox" class="h-4 w-4 text-pink-600"><label class="text-pink-300 text-sm">Proporção</label></div>
-                </div>
+    </div>
+
+    <!-- Container Principal -->
+    <div class="container mx-auto mt-20 p-4 flex flex-col lg:flex-row gap-4">
+        <!-- Painel Esquerdo: Ferramentas (Desktop) -->
+        <div class="panel desktop-tools w-full lg:w-1/4 p-4 flex flex-col gap-4">
+            <h2 class="text-xl font-bold text-pink-300">Ferramentas</h2>
+            <button id="addText" class="btn-3d"><i class="fas fa-font"></i> Adicionar Texto</button>
+            <button id="addCircle" class="btn-3d"><i class="fas fa-circle"></i> Adicionar Círculo</button>
+            <button id="addRect" class="btn-3d"><i class="fas fa-square"></i> Adicionar Retângulo</button>
+            <button id="addTriangle" class="btn-3d"><i class="fas fa-play"></i> Adicionar Triângulo</button>
+            <button id="addStar" class="btn-3d"><i class="fas fa-star"></i> Adicionar Estrela</button>
+            <button id="addLine" class="btn-3d"><i class="fas fa-minus"></i> Adicionar Linha</button>
+            <button id="uploadImage" class="btn-3d"><i class="fas fa-image"></i> Carregar Imagem</button>
+            <button id="centerElement" class="btn-3d"><i class="fas fa-align-center"></i> Centralizar</button>
+            <button id="alignElements" class="btn-3d"><i class="fas fa-align-justify"></i> Alinhar</button>
+            <button id="duplicateElement" class="btn-3d"><i class="fas fa-copy"></i> Duplicar</button>
+            <button id="groupElements" class="btn-3d"><i class="fas fa-object-group"></i> Agrupar</button>
+            <button id="ungroupElements" class="btn-3d"><i class="fas fa-object-ungroup"></i> Desagrupar</button>
+            <button id="zoomIn" class="btn-3d"><i class="fas fa-search-plus"></i> Zoom In</button>
+            <button id="zoomOut" class="btn-3d"><i class="fas fa-search-minus"></i> Zoom Out</button>
+        </div>
+
+        <!-- Canvas Central -->
+        <div class="flex-1 flex flex-col items-center">
+            <div id="canvasContainer" class="w-full max-w-4xl h-[600px] lg:h-[80vh] relative">
+                <canvas id="canvas" class="w-full h-full"></canvas>
             </div>
-            <div class="w-full sm:w-1/4 flex flex-col space-y-2">
-                <div id="layersPanel" class="p-4 bg-indigo-900 bg-opacity-90 rounded-lg overflow-y-auto max-h-64">
-                    <h3 class="text-lg font-semibold text-pink-300">Camadas</h3>
-                </div>
-                <div id="animationTimeline" class="p-4 bg-pink-900 bg-opacity-90 rounded-lg overflow-y-auto max-h-64">
-                    <h3 class="text-lg font-semibold text-indigo-300">Timeline</h3>
-                    <div class="flex space-x-2 mt-2">
-                        <button id="playAnimation" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded"><i class="fas fa-play"></i></button>
-                        <button id="stopAnimation" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded"><i class="fas fa-stop"></i></button>
-                        <button id="addKeyframe" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded"><i class="fas fa-key"></i></button>
-                    </div>
-                </div>
+            <!-- Timeline -->
+            <div id="animationTimeline" class="panel w-full mt-4 p-4 overflow-x-auto"></div>
+        </div>
+
+        <!-- Painel Direito: Propriedades e Camadas -->
+        <div class="panel w-full lg:w-1/4 p-4 flex flex-col gap-4">
+            <h2 class="text-xl font-bold text-indigo-300">Propriedades</h2>
+            <div id="properties" class="flex flex-col gap-2 text-sm">
+                <label>Texto: <input id="textInput" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Tamanho da Fonte: <input id="fontSize" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Fonte: <select id="fontFamily" class="w-full bg-gray-800 p-1 rounded">
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Helvetica">Helvetica</option>
+                </select></label>
+                <label>Largura: <input id="width" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Altura: <input id="height" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Manter Proporção: <input id="lockAspect" type="checkbox" checked></label>
+                <label>Cor: <input id="color" type="color" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Opacidade: <input id="opacity" type="range" min="0" max="100" class="w-full"></label>
+                <label>Desfoque: <input id="blur" type="number" step="0.1" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Brilho: <input id="brightness" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Contraste: <input id="contrast" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Frames de Animação: <input id="animationFrames" type="number" min="1" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Rotação: <input id="rotation" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Inclinação X: <input id="skewX" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Inclinação Y: <input id="skewY" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Espessura do Traço: <input id="strokeWidth" type="number" min="0" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Cor do Traço: <input id="strokeColor" type="color" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Sombra X: <input id="shadowOffsetX" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Sombra Y: <input id="shadowOffsetY" type="number" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Desfoque da Sombra: <input id="shadowBlur" type="number" min="0" class="w-full bg-gray-800 p-1 rounded"></label>
+                <label>Cor da Sombra: <input id="shadowColor" type="color" class="w-full bg-gray-800 p-1 rounded"></label>
+            </div>
+            <div id="layersPanel" class="mt-4 overflow-y-auto max-h-64"></div>
+        </div>
+    </div>
+
+    <!-- Sidebar Móvel -->
+    <div id="sidebar" class="sidebar fixed bottom-0 left-0 w-full h-0 transition-all duration-300 ease-in-out z-50">
+        <button id="toggleSidebar" class="absolute top-2 right-2 btn-3d lg:hidden"><i class="fas fa-chevron-up"></i></button>
+        <div class="p-4 flex flex-col gap-4">
+            <h2 class="text-xl font-bold text-pink-300">Ferramentas Móveis</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="addTextMobile" class="btn-3d"><i class="fas fa-font"></i></button>
+                <button id="addCircleMobile" class="btn-3d"><i class="fas fa-circle"></i></button>
+                <button id="addRectMobile" class="btn-3d"><i class="fas fa-square"></i></button>
+                <button id="addTriangleMobile" class="btn-3d"><i class="fas fa-play"></i></button>
+                <button id="addStarMobile" class="btn-3d"><i class="fas fa-star"></i></button>
+                <button id="addLineMobile" class="btn-3d"><i class="fas fa-minus"></i></button>
+                <button id="uploadImageMobile" class="btn-3d"><i class="fas fa-image"></i></button>
+                <button id="centerElementMobile" class="btn-3d"><i class="fas fa-align-center"></i></button>
             </div>
         </div>
-    </main>
+    </div>
 
-    <!-- Script inline para garantir o carregamento do template -->
+    <!-- Scripts -->
+    <script src="script.js"></script>
     <script>
-        document.getElementById('toggleSidebar').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.toggle('open');
+        // Toggle Sidebar em dispositivos móveis
+        const sidebar = document.getElementById('sidebar');
+        const toggleSidebar = document.getElementById('toggleSidebar');
+        toggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            const icon = toggleSidebar.querySelector('i');
+            icon.classList.toggle('fa-chevron-up');
+            icon.classList.toggle('fa-chevron-down');
         });
-
-        // Forçar o carregamento do template ao selecionar (caso o script.js não esteja funcionando como esperado)
-        document.getElementById('loadTemplate').addEventListener('change', (e) => {
-            const template = e.target.value;
-            if (template) {
-                fetch(`./assets/templates/${template}.json`)
-                    .then(response => {
-                        if (!response.ok) throw new Error('Erro ao carregar o template');
-                        return response.json();
-                    })
-                    .then(data => {
-                        const canvas = window.canvas; // Assume que o canvas está disponível globalmente via script.js
-                        if (canvas) {
-                            canvas.clear();
-                            canvas.loadFromJSON(data, () => {
-                                canvas.renderAll();
-                                // Atualizar camadas e timeline (chamadas do script.js)
-                                if (typeof window.updateLayersPanel === 'function') window.updateLayersPanel();
-                                if (typeof window.updateTimeline === 'function') window.updateTimeline();
-                                if (typeof window.saveState === 'function') window.saveState();
-                            });
-                        } else {
-                            console.error('Canvas não inicializado.');
-                        }
-                    })
-                    .catch(err => console.error('Erro ao carregar o template:', err));
+    
+        // Mapeamento de botões móveis para desktop
+        const mobileToDesktopMap = {
+            addTextMobile: 'addText',
+            addCircleMobile: 'addCircle',
+            addRectMobile: 'addRect',
+            addTriangleMobile: 'addTriangle',
+            addStarMobile: 'addStar',
+            addLineMobile: 'addLine',
+            uploadImageMobile: 'uploadImage',
+            centerElementMobile: 'centerElement'
+        };
+    
+        Object.entries(mobileToDesktopMap).forEach(([mobileId, desktopId]) => {
+            const mobileBtn = document.getElementById(mobileId);
+            const desktopBtn = document.getElementById(desktopId);
+            if (mobileBtn && desktopBtn) {
+                mobileBtn.addEventListener('click', () => desktopBtn.click());
             }
         });
+    
+        // Ajuste dinâmico do canvas
+        function resizeCanvas() {
+            const container = document.getElementById('canvasContainer');
+            const canvasElement = document.getElementById('canvas');
+            const width = container.clientWidth;
+            const height = window.innerWidth > 768 ? 600 : window.innerHeight * 0.5;
+    
+            // Verifica se o canvas do Fabric.js foi inicializado
+            if (window.canvas) {
+                canvasElement.width = width;
+                canvasElement.height = height;
+                window.canvas.setDimensions({ width, height });
+                window.canvas.renderAll();
+            } else {
+                console.warn('Canvas ainda não foi inicializado.');
+            }
+        }
+    
+        window.addEventListener('resize', resizeCanvas);
+    
+        // Aguarda o carregamento do DOM e a inicialização do canvas
+        document.addEventListener('DOMContentLoaded', () => {
+            resizeCanvas(); // Chama a função após o canvas ser inicializado
+        });
+    
+        // Registro do Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('[Service Worker] Registrado com sucesso:', reg))
+                    .catch(err => console.error('[Service Worker] Falha no registro:', err));
+            });
+        }
     </script>
 </body>
 </html>

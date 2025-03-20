@@ -2,132 +2,329 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#4f46e5">
-    <meta name="description" content="Image Creator Tool - Um editor de imagens poderoso e moderno para criar designs incríveis. Desenvolvido por Code Projects e Rede Gamer por LucasDEV.">
-    <meta name="author" content="Code Projects, Rede Gamer, LucasDEV">
-    <meta name="keywords" content="editor de imagens, design, animação, templates, Image Creator Tool">
-    <meta name="robots" content="index, follow">
-    <title>Image Creator Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Creator Tool - Home</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="./assets/favicon.png">
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Image Creator Tool - Home">
+    <meta property="og:description" content="Uma ferramenta intuitiva para criar imagens deslumbrantes com camadas, animações e exportação em múltiplas linguagens.">
+    <meta property="og:image" content="./assets/og-image.png">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="http://localhost:8080/index.html">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Fundo animado consistente com o editor */
         body {
-            overscroll-behavior: none;
-            touch-action: pan-y;
+            background: linear-gradient(45deg, #1e1e2f, #2a2a3d, #3b3b52, #4f46e5);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+            color: #ffffff;
         }
-        * {
-            transition: all 0.3s ease-in-out;
-        }
-        .hero-bg {
-            background: linear-gradient(135deg, #4f46e5, #7c3aed, #db2777);
-            animation: gradientShift 15s ease infinite;
-        }
-        @keyframes gradientShift {
+
+        @keyframes gradientBG {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-        @media (max-width: 640px) {
-            .nav-menu {
-                transform: translateX(100%);
+
+        /* Painéis com efeito 3D */
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.1);
+            transform: perspective(1000px) rotateX(2deg) rotateY(-2deg);
+            transition: transform 0.3s ease;
+            padding: 24px;
+        }
+
+        .panel:hover {
+            transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+        }
+
+        /* Botões 3D consistentes com o editor */
+        .btn-3d {
+            background: linear-gradient(135deg, #db2777, #9333ea);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-3d:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-3d:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Navbar (adaptada do toolbar do editor) */
+        .navbar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1200px;
+            padding: 16px;
+            z-index: 50;
+            transition: top 0.3s ease; /* Animação para sumir/aparecer */
+        }
+
+        .navbar.hidden {
+            top: -100px; /* Esconde a navbar ao rolar para baixo */
+        }
+
+        .nav-links a:not(.btn-3d) {
+            color: #e2e8f0;
+            padding-bottom: 4px;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:not(.btn-3d):hover {
+            color: #db2777;
+        }
+
+        .nav-links a:not(.btn-3d)::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background: #db2777;
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:not(.btn-3d):hover::after {
+            width: 100%;
+        }
+
+        /* Hero Section com mais espaço */
+        .hero-section {
+            margin-top: 180px; /* Aumentado de 120px para 180px para mais espaço */
+        }
+
+        .hero-image {
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 100%;
+            height: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px dashed #4b5563;
+            transition: transform 0.3s ease;
+        }
+
+        .hero-image:hover {
+            transform: scale(1.02);
+        }
+
+        /* Feature Cards */
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .navbar {
+                width: 100%;
+                top: 0;
+                border-radius: 0;
+                flex-direction: column;
+                padding: 16px;
             }
-            .nav-menu.open {
-                transform: translateX(0);
+
+            .navbar.hidden {
+                top: -150px; /* Ajustado para mobile */
+            }
+
+            .navbar .nav-links {
+                flex-direction: column;
+                gap: 16px;
+                margin-top: 16px;
+                display: none;
+            }
+
+            .navbar.open .nav-links {
+                display: flex;
+            }
+
+            .navbar-toggle {
+                display: block;
+            }
+
+            .hero-section {
+                text-align: center;
+                margin-top: 140px; /* Aumentado de 100px para 140px no mobile */
+                padding: 16px;
+            }
+
+            .hero-image {
+                margin-top: 24px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .navbar-toggle {
+                display: none;
+            }
+
+            .navbar .nav-links {
+                display: flex;
             }
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 text-white font-sans antialiased">
+<body>
     <!-- Navbar -->
-    <nav class="fixed top-0 left-0 w-full h-16 bg-black bg-opacity-90 z-20 flex items-center justify-between px-4 shadow-lg">
-        <div class="flex items-center space-x-2">
-            <h1 class="text-xl font-bold text-pink-300">Image Creator Tool</h1>
+    <nav class="navbar flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-2xl font-bold text-pink-300">Image Creator Tool</h1>
         </div>
-        <div class="hidden sm:flex items-center space-x-4">
-            <a href="#features" class="text-indigo-300 hover:text-pink-300">Funcionalidades</a>
-            <a href="#templates" class="text-indigo-300 hover:text-pink-300">Templates</a>
-            <a href="editor.html" class="p-2 bg-pink-600 hover:bg-pink-700 rounded-full text-white flex items-center space-x-2">
-                <i class="fas fa-edit"></i><span>Editor</span>
-            </a>
+        <div class="nav-links flex space-x-6 items-center">
+            <a href="#features">Recursos</a>
+            <a href="#about">Sobre</a>
+            <a href="editor.html" class="btn-3d"><i class="fas fa-edit mr-2"></i>Abrir Editor</a>
         </div>
-        <button id="toggleNav" class="sm:hidden p-2 hover:bg-pink-700 rounded-full"><i class="fas fa-bars"></i></button>
-        <div id="navMenu" class="nav-menu fixed top-16 right-0 w-48 h-[calc(100vh-4rem)] bg-black bg-opacity-95 z-10 transform flex flex-col items-center space-y-4 p-4 sm:hidden">
-            <a href="#features" class="text-indigo-300 hover:text-pink-300">Funcionalidades</a>
-            <a href="#templates" class="text-indigo-300 hover:text-pink-300">Templates</a>
-            <a href="editor.html" class="p-2 bg-pink-600 hover:bg-pink-700 rounded-full text-white flex items-center space-x-2">
-                <i class="fas fa-edit"></i><span>Editor</span>
-            </a>
-        </div>
+        <button class="navbar-toggle text-white focus:outline-none md:hidden">
+            <i class="fas fa-bars text-2xl"></i>
+        </button>
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero-bg min-h-screen flex flex-col items-center justify-center text-center px-4 pt-16">
-        <h2 class="text-3xl sm:text-5xl font-extrabold text-white mb-4">Bem-vindo ao Image Creator Tool</h2>
-        <p class="text-base sm:text-lg text-indigo-200 mb-6 max-w-lg">Crie designs incríveis com um editor poderoso e intuitivo. Desenvolvido por Code Projects e Rede Gamer por LucasDEV.</p>
-        <a href="editor.html" class="p-3 bg-pink-600 hover:bg-pink-700 rounded-full text-white text-base flex items-center space-x-2">
-            <i class="fas fa-rocket"></i><span>Começar</span>
-        </a>
+    <section class="hero-section container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-12">
+        <div class="md:w-1/2">
+            <h2 class="text-4xl md:text-5xl font-bold text-indigo-300 leading-tight mb-6">
+                Crie Imagens Deslumbrantes em Minutos
+            </h2>
+            <p class="text-lg text-gray-300 mb-8">
+                Uma ferramenta intuitiva para artistas e desenvolvedores, com suporte a camadas, animações e exportação em múltiplas linguagens.
+            </p>
+            <a href="editor.html" class="btn-3d text-lg">
+                <i class="fas fa-rocket mr-2"></i>Comece Agora
+            </a>
+        </div>
+        <div class="md:w-1/2">
+            <img src="https://cdn.discordapp.com/attachments/1051124532263530576/1352149362180100116/image.png?ex=67dcf6b9&is=67dba539&hm=e165d3e20ff547b6652491a9d4456a56cddc0914d2ec285b81a090d551f99975&" alt="Exemplo de Imagem" class="hero-image">
+        </div>
     </section>
 
-    <!-- Funcionalidades -->
-    <section id="features" class="py-12 px-4">
-        <h3 class="text-2xl sm:text-3xl font-bold text-indigo-300 text-center mb-8">O que você pode fazer</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <div class="p-4 bg-black bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
-                <i class="fas fa-paint-brush text-3xl text-pink-300 mb-3"></i>
-                <h4 class="text-lg font-semibold text-white mb-2">Criação</h4>
-                <p class="text-indigo-200 text-sm">Adicione formas, textos e imagens com facilidade.</p>
+    <!-- Seção de Recursos -->
+    <section id="features" class="container mx-auto mt-24 px-6">
+        <h2 class="text-3xl font-bold text-pink-300 text-center mb-12">Por que Escolher Nosso Tool?</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="feature-card">
+                <i class="fas fa-layer-group text-4xl text-indigo-300 mb-6"></i>
+                <h3 class="text-xl font-semibold text-white mb-4">Camadas Poderosas</h3>
+                <p class="text-gray-300">Organize seus projetos com um sistema de camadas flexível e fácil de usar.</p>
             </div>
-            <div class="p-4 bg-black bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
-                <i class="fas fa-film text-3xl text-pink-300 mb-3"></i>
-                <h4 class="text-lg font-semibold text-white mb-2">Animação</h4>
-                <p class="text-indigo-200 text-sm">Crie GIFs com uma timeline interativa.</p>
+            <div class="feature-card">
+                <i class="fas fa-film text-4xl text-indigo-300 mb-6"></i>
+                <h3 class="text-xl font-semibold text-white mb-4">Animações Simples</h3>
+                <p class="text-gray-300">Transforme suas ideias em GIFs com uma timeline moderna.</p>
             </div>
-            <div class="p-4 bg-black bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
-                <i class="fas fa-code text-3xl text-pink-300 mb-3"></i>
-                <h4 class="text-lg font-semibold text-white mb-2">Exportação</h4>
-                <p class="text-indigo-200 text-sm">Gere código Python ou JavaScript.</p>
+            <div class="feature-card">
+                <i class="fas fa-code text-4xl text-indigo-300 mb-6"></i>
+                <h3 class="text-xl font-semibold text-white mb-4">Exportação Versátil</h3>
+                <p class="text-gray-300">Gere código em JavaScript, Python, PHP e mais com um clique.</p>
             </div>
         </div>
     </section>
 
-    <!-- Templates -->
-    <section id="templates" class="py-12 px-4 bg-black bg-opacity-50">
-        <h3 class="text-2xl sm:text-3xl font-bold text-indigo-300 text-center mb-8">Templates Prontos</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <div class="p-4 bg-purple-900 bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
-                <div class="h-32 bg-pink-300 rounded mb-3"></div>
-                <h4 class="text-lg font-semibold text-white mb-2">Template 1</h4>
-                <p class="text-indigo-200 text-sm">Design vibrante para redes sociais.</p>
-            </div>
-            <div class="p-4 bg-purple-900 bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
-                <div class="h-32 bg-indigo-300 rounded mb-3"></div>
-                <h4 class="text-lg font-semibold text-white mb-2">Template 2</h4>
-                <p class="text-indigo-200 text-sm">Ideal para mockups e apresentações.</p>
-            </div>
-            <div class="p-4 bg-purple-900 bg-opacity-80 rounded-lg shadow-lg hover:shadow-xl">
-                <div class="h-32 bg-pink-300 rounded mb-3"></div>
-                <h4 class="text-lg font-semibold text-white mb-2">Template 3</h4>
-                <p class="text-indigo-200 text-sm">Perfeito para animações criativas.</p>
-            </div>
+    <!-- Seção Sobre -->
+    <section id="about" class="container mx-auto mt-24 px-6">
+        <h2 class="text-3xl font-bold text-pink-300 text-center mb-12">Sobre o Projeto</h2>
+        <div class="panel max-w-3xl mx-auto text-center">
+            <p class="text-gray-300 text-lg">
+                O Image Creator Tool foi criado para unir criatividade e tecnologia. Seja você um designer ou programador, nossa ferramenta oferece uma experiência fluida para criar e compartilhar suas visões.
+            </p>
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="py-6 px-4 bg-black bg-opacity-90 text-center">
-        <p class="text-indigo-200 text-sm">Desenvolvido por Code Projects e Rede Gamer por LucasDEV © 2025</p>
+    <!-- Rodapé -->
+    <footer class="mt-24 py-6 text-center text-gray-400 bg-[rgba(255,255,255,0.1)] backdrop-blur-md">
+        <p>© 2025 Image Creator Tool. Feito com <i class="fas fa-heart text-pink-300"></i> para criadores.</p>
     </footer>
 
-    <!-- Script para toggle mobile -->
+    <!-- Scripts -->
     <script>
-        document.getElementById('toggleNav').addEventListener('click', () => {
-            document.getElementById('navMenu').classList.toggle('open');
+        // Toggle Navbar no Mobile
+        const navbar = document.querySelector('.navbar');
+        const toggleButton = document.querySelector('.navbar-toggle');
+        toggleButton.addEventListener('click', () => {
+            navbar.classList.toggle('open');
+            const icon = toggleButton.querySelector('i');
+            icon.classList.toggle('fa-bars');
+            icon.classList.toggle('fa-times');
         });
+
+        // Smooth Scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Esconder/Mostrar Navbar ao rolar
+        let lastScrollTop = 0;
+        window.addEventListener('scroll', () => {
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop > lastScrollTop) {
+                // Rolando para baixo
+                navbar.classList.add('hidden');
+            } else {
+                // Rolando para cima
+                navbar.classList.remove('hidden');
+            }
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; // Evita valores negativos
+        });
+
+        // Registro do Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('[Service Worker] Registrado com sucesso:', reg))
+                    .catch(err => console.error('[Service Worker] Falha no registro:', err));
+            });
+        }
     </script>
 </body>
 </html>
